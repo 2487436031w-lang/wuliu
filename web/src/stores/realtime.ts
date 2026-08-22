@@ -1,37 +1,70 @@
+import { Client } from '@stomp/stompjs'
 import { defineStore } from 'pinia'
 import { onScopeDispose, ref } from 'vue'
-import { pushMockAlarm, tickMockPositions } from '../api/mock'
-import type { Alarm, PositionPoint } from '../types/domain'
+import { isMockMode } from '../api/client'
+import { mockTickLight } from '../api/mock'
+import type { AlarmLog, LatestLight } from '../types/domain'
+import { useAuthStore } from './auth'
 
 /**
- * Deep module: realtime seam.
- * Mock: interval ticks. Later: connect `/ws/positions` + `/ws/alarms`.
+ * Seam: STOMP `/ws?token=` → topics。
+ * Mock 模式用定时器模拟光照推送。
  */
 export const useRealtimeStore = defineStore('realtime', () => {
-  const positions = ref<PositionPoint[]>([])
-  const latestAlarm = ref<Alarm | null>(null)
   const connected = ref(false)
+  const latestLight = ref<LatestLight | null>(null)
+  const latestAlarm = ref<AlarmLog | null>(null)
+  let client: Client | null = null
   let timer: number | undefined
 
   function connect() {
-    if (timer) return
-    connected.value = true
-    positions.value = tickMockPositions()
-    timer = window.setInterval(() => {
-      positions.value = tickMockPositions()
-      if (Math.random() < 0.08) {
-        latestAlarm.value = pushMockAlarm({
-          alarmType: Math.random() > 0.5 ? 'abnormal_stop' : 'off_route',
-          alarmLevel: 2,
-          description: Math.random() > 0.5 ? '异常停留超过阈值' : '偏航告警（模拟推送）',
+    disconnect()
+    if (isMockMode) {
+      connected.value = true
+      timer = window.setInterval(() => {
+        latestLight.value = mockTickLight()
+      }, 3000)
+      return
+    }
+
+    const auth = useAuthStore()
+    const token = auth.session?.token
+    if (!token) return
+
+    const wsBase = (import.meta.env.VITE_WS_BASE as string) || `ws://${location.hostname}:8080`
+    client = new Client({
+      brokerURL: `${wsBase}/ws?token=${encodeURIComponent(token)}`,
+      reconnectDelay: 4000,
+      onConnect: () => {
+        connected.value = true
+        client?.subscribe('/topic/light-readings', (msg) => {
+          const body = JSON.parse(msg.body) as { data: LatestLight }
+          latestLight.value = body.data
         })
-      }
-    }, 2500)
+        client?.subscribe('/topic/alarms', (msg) => {
+          const body = JSON.parse(msg.body) as { data: AlarmLog }
+          latestAlarm.value = body.data
+        })
+        client?.subscribe('/topic/device-status', () => {
+          /* pages can refresh on demand */
+        })
+        client?.subscribe('/topic/device-online', () => {})
+      },
+      onDisconnect: () => {
+        connected.value = false
+      },
+      onStompError: () => {
+        connected.value = false
+      },
+    })
+    client.activate()
   }
 
   function disconnect() {
     if (timer) window.clearInterval(timer)
     timer = undefined
+    client?.deactivate()
+    client = null
     connected.value = false
   }
 
@@ -41,5 +74,5 @@ export const useRealtimeStore = defineStore('realtime', () => {
 
   onScopeDispose(disconnect)
 
-  return { positions, latestAlarm, connected, connect, disconnect, clearAlarmToast }
+  return { connected, latestLight, latestAlarm, connect, disconnect, clearAlarmToast }
 })

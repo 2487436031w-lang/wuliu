@@ -1,12 +1,12 @@
-# MQTT 契约（draft）
+# MQTT 摘要（智慧路灯）
 
-> Status: draft · Version: v0 · 对齐智慧物流 MVP
+> 真源：[`smart-street-light-master/API文档.md`](../../smart-street-light-master/API文档.md) § MQTT。
 
-| Topic | Dir | Publisher | Subscriber | Payload | Notes |
-|-------|-----|-----------|------------|---------|-------|
-| `logistics/{deviceId}/telemetry` | up | device | cloud | deviceId, ts, source, lat, lon, fix | 周期位置/心跳可同包或拆分 |
-| `logistics/{deviceId}/event` | up | device | cloud | type, ts, data | UNSEAL 等 |
-| `logistics/{deviceId}/command` | down | cloud | device | cmdId, type, args | 调度指令 |
-| `logistics/{deviceId}/command/ack` | up | device | cloud | cmdId, result | ok/fail |
+| Topic | 方向 | 说明 |
+|-------|------|------|
+| `smart-light/{deviceSn}/light` | 上行 | 光照上报 |
+| `smart-light/{deviceSn}/status` | 上行 | 开关状态回传 |
+| `smart-light/{deviceSn}/alarm` | 上行 | 告警 |
+| `smart-light/{deviceSn}/command` | 下行 | `AUTO_ON/OFF` `MANUAL_ON/OFF` |
 
-字段细则待 PRD 冻结后升为 v1 frozen。
+前端不直连 MQTT；经后端再 STOMP/HTTP 到 Web。

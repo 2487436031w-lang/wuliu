@@ -1,11 +1,20 @@
-export type Role = 'shipper' | 'warehouse' | 'dispatcher' | 'driver' | 'admin'
+export type Role = 'MUNICIPAL_STAFF' | 'ADMIN'
 
 export const ROLE_LABEL: Record<Role, string> = {
-  shipper: '货主',
-  warehouse: '仓库管理员',
-  dispatcher: '调度员',
-  driver: '司机',
-  admin: '系统管理员',
+  MUNICIPAL_STAFF: '市政人员',
+  ADMIN: '路灯管理员',
+}
+
+/** 路灯后端：成功 code=200；Header 名 token */
+export interface ApiResult<T> {
+  code: number
+  errorMsg: string | null
+  data: T
+}
+
+export interface PageResult<T> {
+  total: number
+  records: T[]
 }
 
 export interface UserSession {
@@ -15,85 +24,80 @@ export interface UserSession {
   role: Role
 }
 
-export interface ApiResult<T> {
-  code: number
-  message: string
-  data: T
-}
-
-export interface Vehicle {
+export interface Device {
   id: number
-  plateNo: string
-  deviceId: string
-  type: string
-  driverName: string
-  driverPhone: string
-  status: 0 | 1
-}
-
-export interface Cargo {
-  id: number
-  name: string
-  shipperName: string
-  status: 'pending' | 'loaded' | 'transporting' | 'delivered'
-  vehicleId?: number
-}
-
-export interface Binding {
-  id: number
-  cargoId: number
-  vehicleId: number
+  deviceName: string
+  deviceSn: string
+  status: 'ON' | 'OFF'
+  onlineStatus: 'ONLINE' | 'OFFLINE'
+  lastHeartbeatTime: string | null
   createdAt: string
 }
 
-export interface PositionPoint {
-  vehicleId: number
-  cargoId?: number
-  longitude: number
-  latitude: number
-  speed: number
-  timestamp: string
+export interface DeviceDetail extends Device {
+  latestLightIntensity: number | null
+  activeAlarmCount: number
 }
 
-export interface TrackPoint {
-  timestamp: string
-  longitude: number
-  latitude: number
-  speed: number
+export interface DeviceStatistics {
+  totalCount: number
+  onlineCount: number
+  offlineCount: number
+  onCount: number
+  offCount: number
 }
 
-export interface EtaInfo {
-  cargoId: number
-  eta: string
-  remainingKm: number
-  remainingMinutes: number
-}
-
-export type AlarmType = 'off_route' | 'abnormal_stop' | 'abnormal_open'
-
-export interface Alarm {
+export interface LightReading {
   id: number
-  vehicleId: number
-  cargoId?: number
-  alarmType: AlarmType
-  alarmLevel: 1 | 2 | 3
-  description: string
-  status: 'active' | 'resolved'
-  timestamp: string
+  deviceId: number
+  deviceName: string
+  lightIntensity: number
+  createdAt: string
 }
 
-export interface DispatchCommand {
-  commandId: string
-  vehicleId: number
-  type: 'reroute' | 'stop' | 'resume'
+export interface LatestLight {
+  deviceId: number
+  lightIntensity: number
+  createdAt: string
+}
+
+export interface TrendPoint {
+  time: string
+  value: number
+}
+
+export interface AlarmLog {
+  id: number
+  deviceId: number
+  deviceName: string
+  alarmType: string
   message: string
-  targetLongitude?: number
-  targetLatitude?: number
-  timestamp: string
+  status: 'ACTIVE' | 'RESOLVED'
+  createdAt: string
+  resolvedAt: string | null
 }
 
-export const ALARM_TYPE_LABEL: Record<AlarmType, string> = {
-  off_route: '偏航',
-  abnormal_stop: '异常停留',
-  abnormal_open: '异常开箱',
+export interface AlarmStatistics {
+  activeCount: number
+  byType: { alarmType: string; count: number }[]
+}
+
+export interface ThresholdConfig {
+  id: number
+  lightThresholdOn: number
+  lightThresholdOff: number
+  heartbeatTimeout: number
+  updatedAt: string
+}
+
+export interface ControlLog {
+  id: number
+  deviceId: number | null
+  deviceName: string | null
+  operatorId: number | null
+  operatorName: string | null
+  command: string
+  source: string
+  result: string
+  createdAt: string
 }

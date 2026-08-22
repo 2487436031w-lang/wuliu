@@ -1,11 +1,9 @@
 # Handoff 最新入口
 
-**当前最新：** [handoffs/2026-08-22-frontend-mvp.md](handoffs/2026-08-22-frontend-mvp.md)
+**当前最新：** [handoffs/2026-08-22-streetlight-web.md](handoffs/2026-08-22-streetlight-web.md)
 
-先前：
-- [handoffs/2026-08-22-run-feasibility.md](handoffs/2026-08-22-run-feasibility.md) — 可运行性验证  
-- [handoffs/2026-08-22-bootstrap.md](handoffs/2026-08-22-bootstrap.md) — 决策与文档  
+**产品：** 智慧路灯（前端 `web/` + 后端 `smart-street-light-master/`）。
 
-新 Agent：先读 [`CONTEXT.md`](../../CONTEXT.md)，再读最新 handoff。
+智慧物流相关设计、旧 handoff、根目录物流接口/任务文档**已删除**，勿再按物流实现。
 
-**摘要：** A1 `frontend-design` 已装；`web/` 五角色 MVP + Mock 可跑；`npm run build` 通过。
+新 Agent：先读 [`CONTEXT.md`](../../CONTEXT.md)，再读上述 handoff。

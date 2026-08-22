@@ -1,24 +1,23 @@
 :root {
-  /* Industrial logistics — cool concrete + signal amber + track teal */
-  --ink: #1a2332;
-  --ink-soft: #3a4658;
-  --paper: #e8ecf0;
-  --paper-elevated: #f4f6f8;
-  --line: #c5ced8;
-  --signal: #e8a317;
-  --signal-deep: #c4840f;
-  --track: #2a6f7a;
-  --track-soft: #3d8a96;
-  --danger: #c23b22;
-  --ok: #2f7d4a;
-  --shadow: 0 12px 40px rgba(26, 35, 50, 0.12);
-
+  /* Municipal night lighting — asphalt + sodium amber (not purple / not cream-serif) */
+  --ink: #121820;
+  --ink-soft: #4a5564;
+  --paper: #e6e9ee;
+  --panel: #f2f4f7;
+  --line: #c8d0da;
+  --sodium: #f0a202;
+  --sodium-deep: #c47d00;
+  --steel: #2c3e50;
+  --online: #2a9d6e;
+  --offline: #8a93a0;
+  --danger: #c0392b;
+  --lamp-on: #ffe08a;
+  --shadow: 0 14px 36px rgba(18, 24, 32, 0.14);
   --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
   --font-body: "Source Sans 3", "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
-
-  --radius: 4px;
-  --shell-rail: 220px;
+  --radius: 3px;
+  --rail: 210px;
 }
 
 *,
@@ -38,40 +37,31 @@ body {
   font-family: var(--font-body);
   color: var(--ink);
   background:
-    radial-gradient(1200px 600px at 10% -10%, rgba(42, 111, 122, 0.18), transparent 55%),
-    radial-gradient(900px 500px at 100% 0%, rgba(232, 163, 23, 0.12), transparent 50%),
-    linear-gradient(165deg, #dfe5eb 0%, var(--paper) 42%, #dde3e9 100%);
+    radial-gradient(900px 480px at 0% 0%, rgba(240, 162, 2, 0.16), transparent 55%),
+    radial-gradient(800px 420px at 100% 10%, rgba(44, 62, 80, 0.12), transparent 50%),
+    linear-gradient(160deg, #d5dae2 0%, var(--paper) 45%, #dce1e8 100%);
   background-attachment: fixed;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-button {
-  font: inherit;
 }
 
 h1,
 h2,
 h3 {
   font-family: var(--font-display);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
   margin: 0;
 }
 
 .mono {
   font-family: var(--font-mono);
-  font-size: 0.85em;
+  font-size: 0.86em;
 }
 
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.22s ease, transform 0.22s ease;
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
-  transform: translateY(6px);
+  transform: translateY(4px);
 }

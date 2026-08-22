@@ -1,6 +1,8 @@
-# 智慧物流 Web（MVP）
+# 灯廊 · 智慧路灯前端
 
-Vue 3 + Vite + Pinia + Vue Router + Leaflet。视觉遵循项目内 `/frontend-design`；接口对齐根目录 `接口文档.md`。
+对齐 [`smart-street-light-master`](../smart-street-light-master/) 与 [`API文档.md`](../smart-street-light-master/API文档.md)。
+
+**当前仓库交付仅为智慧路灯**（智慧物流相关设计文档已移除）。
 
 ## 运行
 
@@ -10,28 +12,33 @@ npm install
 npm run dev
 ```
 
-打开 http://localhost:5173 ，任意密码，选择角色进入。默认 **Mock**（无后端也可演示闭环）。
+- Mock（默认）：http://localhost:5173  
+  - 账号：`admin` / `admin123` 或 `staff` / `staff123`  
+  - 支持注册（`POST /users/register` 契约）
+- 真后端：
 
-## 设计方向
+```bash
+# .env.local
+VITE_API_MODE=http
+VITE_API_BASE=http://localhost:8080
+VITE_WS_BASE=ws://localhost:8080
+```
 
-- 品牌：**在途**（Barlow Condensed 显示 + Source Sans 3 正文 + IBM Plex Mono 数据）
-- 色板：混凝土灰纸面 + 墨青字 + 信号琥珀 + 轨迹青绿
-- 签名元素：全幅地图为主视觉，车辆琥珀脉冲点
+请求头：`token: <JWT>`（与路灯后端一致，成功 `code=200`）。
+
+## 页面
+
+| 路由 | 功能 |
+|------|------|
+| `/login` | 登录 / 注册 |
+| `/dashboard` | 设备统计 + 实时光照 |
+| `/devices` | 设备 CRUD + 手动开关 |
+| `/lights` | 光照列表与趋势 |
+| `/alarms` | 告警解决 |
+| `/threshold` | 阈值（ADMIN） |
+| `/logs` | 控制日志 |
 
 ## 模块 seam
 
-| Module | Path | 可替换 |
-|--------|------|--------|
-| HTTP | `src/api/client.ts` + `mock.ts` | 将来 `http.ts` 接真后端 |
-| Realtime | `src/stores/realtime.ts` | 接 `/ws/positions` `/ws/alarms` |
-| Auth | `src/stores/auth.ts` | JWT |
-
-## 角色路由
-
-| 角色 | 首页 |
-|------|------|
-| warehouse | `/warehouse` |
-| shipper | `/track` |
-| dispatcher | `/dispatch` |
-| driver | `/driver` |
-| admin | `/alarms` |
+- `src/api/client.ts`：`mock` | `http` Adapter  
+- `src/stores/realtime.ts`：Mock 定时 / STOMP `/ws?token=`

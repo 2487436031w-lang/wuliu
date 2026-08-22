@@ -26,7 +26,8 @@ D:\ohos\bearpi-hm_nano
 
 ## 与仓库的关系
 
-- `smart-street-light-master`：云端参考后端（Spring Boot）
-- `firmware/bearpi-hm_nano`：板端官方源码 + 后续物流固件改这里的 sample
+- `smart-street-light-master`：智慧路灯云端后端（Spring Boot）
+- `web/`：路灯控制台前端「灯廊」
+- `firmware/bearpi-hm_nano`：官方 sample；对接路灯时改 MQTT topic 为 `smart-light/{deviceSn}/…`
 
 建议将 `firmware/bearpi-hm_nano/` 加入 `.gitignore`（体积大、自带 `.git`），不要整仓提交进业务 Git。

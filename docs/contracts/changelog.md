@@ -2,5 +2,6 @@
 
 | Date | Who | Change | Reason |
 |------|-----|--------|--------|
-| 2026-08-22 | frontend | 建 `docs/collab/`；MVP 不做开放注册；接口按分期扩展 | 跨部门对齐 |
-| 2026-08-21 | system | 初始化 contracts 目录与 v0 MQTT/HTTP | team-contract-align 装载 |
+| 2026-08-22 | frontend | 删除物流设计/契约干扰；contracts 改为路灯摘要 | 交付对齐路灯后端 |
+| 2026-08-22 | frontend | 灯廊 Web MVP | 对齐 API文档 |
+| 2026-08-21 | system | 曾初始化物流 contracts v0 | 已废弃 |

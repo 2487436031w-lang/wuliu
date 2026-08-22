@@ -1,36 +1,28 @@
-# HTTP / WS 契约（前端对齐稿 · review）
+# HTTP / WS 摘要（智慧路灯）
 
-> Status: review · 对齐根目录 `接口文档.md`；物流后端未实现前，`web/` 用 Mock Adapter。
+> 细节与示例以 [`smart-street-light-master/API文档.md`](../../smart-street-light-master/API文档.md) 为准。
 
-## Auth
+## 约定
 
-| Method | Path | Notes |
-|--------|------|-------|
-| POST | `/api/auth/login` | `{ username, password }` → `{ token, userId, username, role }` |
-| POST | `/api/auth/logout` | Header `Authorization: Bearer {token}` |
+- Base：`http://localhost:8080`
+- 成功：`code=200`；失败常见 `500` + `errorMsg`
+- 认证：Header **`token`**（JWT）
+- 分页：`page` / `pageSize` → `{ total, records }`
 
-角色：`shipper` | `warehouse` | `dispatcher` | `driver` | `admin`
+## 前端使用的 REST
 
-## REST（MVP）
+| 域 | 路径 |
+|----|------|
+| 用户 | `POST /users/register` `POST /users/login` |
+| 设备 | `/devices` CRUD、`/statistics`、`/{id}/switch` |
+| 光照 | `/light-readings`、`/latest/{id}`、`/trend` |
+| 告警 | `/alarm-logs`、`/{id}/resolve`、`/statistics` |
+| 阈值 | `GET/PUT /threshold-config` |
+| 控制日志 | `/control-logs` |
 
-| Method | Path | Role |
-|--------|------|------|
-| GET/POST/PUT/DELETE | `/api/vehicles`… | warehouse |
-| GET/POST | `/api/cargos`… | shipper / warehouse |
-| GET/POST/DELETE | `/api/bindings`… | warehouse |
-| GET | `/api/vehicles/positions` | dispatcher |
-| GET | `/api/cargos/{id}/position\|track\|eta` | shipper |
-| GET/POST resolve | `/api/alarms`… | dispatcher / admin |
-| POST/GET | `/api/dispatch` | dispatcher |
-| POST | `/api/cargos/{id}/status` | driver |
+## WebSocket（STOMP）
 
-统一响应：`{ code: 0, message, data }`（见接口文档）。
+- 端点：`ws://host:8080/ws?token={jwt}`
+- 主题：`/topic/light-readings` `/topic/device-status` `/topic/device-online` `/topic/alarms`
 
-## WebSocket
-
-| Endpoint | Payload type | Consumers |
-|----------|--------------|-----------|
-| `/ws/positions` | `{ type:"position", data:{ vehicleId, cargoId, longitude, latitude, speed, timestamp } }` | shipper, dispatcher |
-| `/ws/alarms` | `{ type:"alarm", data:{ alarmId, vehicleId, alarmType, alarmLevel, description, timestamp } }` | shipper, dispatcher |
-
-前端模块 seam：`api/client`（HTTP）+ `stores/realtime`（WS）；Mock 实现可替换为真实 Adapter，不改页面。
+前端实现：`web/src/api/*`、`web/src/stores/realtime.ts`。
