@@ -2,7 +2,8 @@
 
 | Date | Who | Change | Reason |
 |------|-----|--------|--------|
-| 2026-08-22 | agents | handoff 本地后端+HTTP 联调快照 | 新 Agent 入口 |
+| 2026-08-22 | firmware | BEARPI-PLAN + streetlight merged firmware skeleton | 板端 C3→D5→闭环路线 |
+| 2026-08-22 | frontend | WS page refresh, 401, mqtt-simulate.ps1 | HTTP 联调体验与 MQTT 模拟 |
 | 2026-08-22 | frontend | 总览卡片可点击跳转；待处理告警命名 | Dashboard/Devices/Alarms 路由筛选 |
 | 2026-08-22 | devops | 本地 Docker 联调（compose/scripts/LOCAL-RUN） | 跑通 PG+EMQX+jar |
 | 2026-08-22 | frontend | 联调清单 + Must（趋势日期、.env.example） | 最小闭环联调 |

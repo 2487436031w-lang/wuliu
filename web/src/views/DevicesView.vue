@@ -2,9 +2,11 @@
 import { onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '../api/client'
+import { useRealtimeStore } from '../stores/realtime'
 import type { Device } from '../types/domain'
 
 const route = useRoute()
+const realtime = useRealtimeStore()
 const records = ref<Device[]>([])
 const total = ref(0)
 const msg = ref('')
@@ -34,6 +36,13 @@ watch(
   () => route.query,
   async () => {
     applyRouteFilter()
+    await load()
+  },
+)
+
+watch(
+  () => realtime.deviceSyncTick,
+  async () => {
     await load()
   },
 )

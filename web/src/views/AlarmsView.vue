@@ -2,9 +2,11 @@
 import { onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '../api/client'
+import { useRealtimeStore } from '../stores/realtime'
 import type { AlarmLog } from '../types/domain'
 
 const route = useRoute()
+const realtime = useRealtimeStore()
 const records = ref<AlarmLog[]>([])
 const status = ref('')
 
@@ -26,6 +28,13 @@ watch(
   () => route.query,
   async () => {
     applyRouteFilter()
+    await load()
+  },
+)
+
+watch(
+  () => realtime.alarmSyncTick,
+  async () => {
     await load()
   },
 )

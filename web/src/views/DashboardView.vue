@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { api, isMockMode } from '../api/client'
 import { useRealtimeStore } from '../stores/realtime'
@@ -16,6 +16,13 @@ async function load() {
 }
 
 onMounted(load)
+
+watch(
+  () => [realtime.deviceSyncTick, realtime.alarmSyncTick],
+  () => {
+    load()
+  },
+)
 
 const tiles = computed(() => {
   if (!stats.value) return []
