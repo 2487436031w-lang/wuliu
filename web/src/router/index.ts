@@ -1,14 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import type { Role } from '../types/domain'
-
-declare module 'vue-router' {
-  interface RouteMeta {
-    roles?: Role[]
-    title?: string
-    public?: boolean
-  }
-}
 
 const routes: RouteRecordRaw[] = [
   {
@@ -21,36 +12,42 @@ const routes: RouteRecordRaw[] = [
     path: '/',
     component: () => import('../layouts/AppShell.vue'),
     children: [
-      { path: '', redirect: '/track' },
+      { path: '', redirect: '/dashboard' },
       {
-        path: 'warehouse',
-        name: 'warehouse',
-        component: () => import('../views/WarehouseBindView.vue'),
-        meta: { roles: ['warehouse', 'admin'], title: '车辆与绑定' },
+        path: 'dashboard',
+        name: 'dashboard',
+        component: () => import('../views/DashboardView.vue'),
+        meta: { title: '总览' },
       },
       {
-        path: 'track',
-        name: 'track',
-        component: () => import('../views/ShipperTrackView.vue'),
-        meta: { roles: ['shipper', 'admin'], title: '在途追踪' },
+        path: 'devices',
+        name: 'devices',
+        component: () => import('../views/DevicesView.vue'),
+        meta: { title: '设备管理' },
       },
       {
-        path: 'dispatch',
-        name: 'dispatch',
-        component: () => import('../views/DispatcherMapView.vue'),
-        meta: { roles: ['dispatcher', 'admin'], title: '调度总览' },
-      },
-      {
-        path: 'driver',
-        name: 'driver',
-        component: () => import('../views/DriverStatusView.vue'),
-        meta: { roles: ['driver', 'admin'], title: '状态上报' },
+        path: 'lights',
+        name: 'lights',
+        component: () => import('../views/LightsView.vue'),
+        meta: { title: '光照监测' },
       },
       {
         path: 'alarms',
         name: 'alarms',
-        component: () => import('../views/AdminAlarmsView.vue'),
-        meta: { roles: ['admin', 'dispatcher', 'shipper'], title: '告警日志' },
+        component: () => import('../views/AlarmsView.vue'),
+        meta: { title: '告警管理' },
+      },
+      {
+        path: 'threshold',
+        name: 'threshold',
+        component: () => import('../views/ThresholdView.vue'),
+        meta: { title: '阈值配置', admin: true },
+      },
+      {
+        path: 'logs',
+        name: 'logs',
+        component: () => import('../views/ControlLogsView.vue'),
+        meta: { title: '控制日志' },
       },
     ],
   },
@@ -61,28 +58,13 @@ export const router = createRouter({
   routes,
 })
 
-const HOME_BY_ROLE: Record<Role, string> = {
-  shipper: '/track',
-  warehouse: '/warehouse',
-  dispatcher: '/dispatch',
-  driver: '/driver',
-  admin: '/alarms',
-}
-
 router.beforeEach((to) => {
   const auth = useAuthStore()
   if (to.meta.public) {
-    if (auth.isAuthed && to.name === 'login') return HOME_BY_ROLE[auth.role!]
+    if (auth.isAuthed && to.name === 'login') return '/dashboard'
     return true
   }
   if (!auth.isAuthed) return { name: 'login', query: { redirect: to.fullPath } }
-  const roles = to.meta.roles
-  if (roles && auth.role && !roles.includes(auth.role) && auth.role !== 'admin') {
-    return HOME_BY_ROLE[auth.role]
-  }
+  if (to.meta.admin && !auth.isAdmin) return '/dashboard'
   return true
 })
-
-export function homeForRole(role: Role) {
-  return HOME_BY_ROLE[role]
-}

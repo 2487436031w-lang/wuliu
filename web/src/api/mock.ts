@@ -1,279 +1,263 @@
 import type {
-  Alarm,
-  ApiResult,
-  Binding,
-  Cargo,
-  DispatchCommand,
-  EtaInfo,
-  PositionPoint,
+  AlarmLog,
+  AlarmStatistics,
+  ControlLog,
+  Device,
+  DeviceDetail,
+  DeviceStatistics,
+  LatestLight,
+  LightReading,
+  PageResult,
   Role,
-  TrackPoint,
+  ThresholdConfig,
+  TrendPoint,
   UserSession,
-  Vehicle,
 } from '../types/domain'
+import { fail, ok, type StreetLightApi } from './types'
 
-/** Deep module: HTTP seam. Pages only call these methods. */
-export interface LogisticsApi {
-  login(username: string, password: string, role: Role): Promise<ApiResult<UserSession>>
-  logout(): Promise<ApiResult<null>>
-  listVehicles(): Promise<ApiResult<Vehicle[]>>
-  createVehicle(body: Omit<Vehicle, 'id' | 'status'>): Promise<ApiResult<Vehicle>>
-  listCargos(): Promise<ApiResult<Cargo[]>>
-  listBindings(): Promise<ApiResult<Binding[]>>
-  createBinding(cargoId: number, vehicleId: number): Promise<ApiResult<Binding>>
-  deleteBinding(id: number): Promise<ApiResult<null>>
-  vehiclePositions(): Promise<ApiResult<PositionPoint[]>>
-  cargoPosition(cargoId: number): Promise<ApiResult<PositionPoint>>
-  cargoTrack(cargoId: number): Promise<ApiResult<{ cargoId: number; points: TrackPoint[] }>>
-  cargoEta(cargoId: number): Promise<ApiResult<EtaInfo>>
-  listAlarms(): Promise<ApiResult<Alarm[]>>
-  resolveAlarm(id: number): Promise<ApiResult<Alarm>>
-  dispatch(body: {
-    vehicleId: number
-    type: DispatchCommand['type']
-    message: string
-    targetLongitude?: number
-    targetLatitude?: number
-  }): Promise<ApiResult<DispatchCommand>>
-  listDispatch(vehicleId?: number): Promise<ApiResult<DispatchCommand[]>>
-  updateCargoStatus(
-    cargoId: number,
-    status: Cargo['status'],
-  ): Promise<ApiResult<Cargo>>
+const now = () => {
+  const d = new Date()
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 
-function ok<T>(data: T): ApiResult<T> {
-  return { code: 0, message: 'success', data }
+let users: { username: string; password: string; role: Role; id: number }[] = [
+  { id: 1, username: 'admin', password: 'admin123', role: 'ADMIN' },
+  { id: 2, username: 'staff', password: 'staff123', role: 'MUNICIPAL_STAFF' },
+]
+
+let devices: Device[] = [
+  {
+    id: 1,
+    deviceName: '一号路口灯柱',
+    deviceSn: 'SN001',
+    status: 'ON',
+    onlineStatus: 'ONLINE',
+    lastHeartbeatTime: now(),
+    createdAt: '2026-06-01 10:00:00',
+  },
+  {
+    id: 2,
+    deviceName: '校园东门灯',
+    deviceSn: 'SN002',
+    status: 'OFF',
+    onlineStatus: 'ONLINE',
+    lastHeartbeatTime: now(),
+    createdAt: '2026-06-02 11:00:00',
+  },
+  {
+    id: 3,
+    deviceName: '体育场路灯',
+    deviceSn: 'SN003',
+    status: 'OFF',
+    onlineStatus: 'OFFLINE',
+    lastHeartbeatTime: '2026-08-21 22:00:00',
+    createdAt: '2026-06-03 12:00:00',
+  },
+]
+
+let lights: LightReading[] = []
+let lightSeq = 1
+for (let i = 0; i < 24; i++) {
+  lights.push({
+    id: lightSeq++,
+    deviceId: 1,
+    deviceName: '一号路口灯柱',
+    lightIntensity: 20 + Math.sin(i / 3) * 40 + i * 2,
+    createdAt: `2026-08-22 ${String(i).padStart(2, '0')}:00:00`,
+  })
 }
 
-const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, '+08:00')
-
-let vehicles: Vehicle[] = [
+let alarms: AlarmLog[] = [
   {
-    id: 201,
-    plateNo: '沪A·物流01',
-    deviceId: 'ESP32-0001',
-    type: 'truck',
-    driverName: '张三',
-    driverPhone: '13800138000',
-    status: 1,
-  },
-  {
-    id: 202,
-    plateNo: '沪B·模拟02',
-    deviceId: 'SIM-0002',
-    type: 'van',
-    driverName: '李四',
-    driverPhone: '13900139000',
-    status: 1,
-  },
-  {
-    id: 203,
-    plateNo: '沪C·模拟03',
-    deviceId: 'SIM-0003',
-    type: 'truck',
-    driverName: '王五',
-    driverPhone: '13700137000',
-    status: 0,
+    id: 1,
+    deviceId: 3,
+    deviceName: '体育场路灯',
+    alarmType: 'OFFLINE',
+    message: '心跳超时离线',
+    status: 'ACTIVE',
+    createdAt: '2026-08-21 22:05:00',
+    resolvedAt: null,
   },
 ]
 
-let cargos: Cargo[] = [
-  { id: 101, name: '冷链样件 A', shipperName: '华东货主', status: 'transporting', vehicleId: 201 },
-  { id: 102, name: '电子元器件 B', shipperName: '华东货主', status: 'loaded', vehicleId: 202 },
-  { id: 103, name: '待发货 C', shipperName: '华东货主', status: 'pending' },
-]
-
-let bindings: Binding[] = [
-  { id: 1, cargoId: 101, vehicleId: 201, createdAt: nowIso() },
-  { id: 2, cargoId: 102, vehicleId: 202, createdAt: nowIso() },
-]
-
-let alarms: Alarm[] = [
-  {
-    id: 5001,
-    vehicleId: 201,
-    cargoId: 101,
-    alarmType: 'off_route',
-    alarmLevel: 2,
-    description: '车辆偏离规划路线超过 500 米',
-    status: 'active',
-    timestamp: nowIso(),
-  },
-]
-
-let dispatches: DispatchCommand[] = []
-
-/** Shanghai-ish demo corridor */
-const baseTrack: TrackPoint[] = [
-  { timestamp: '2026-08-21T10:00:00+08:00', longitude: 121.47, latitude: 31.23, speed: 40 },
-  { timestamp: '2026-08-21T11:00:00+08:00', longitude: 121.48, latitude: 31.235, speed: 55 },
-  { timestamp: '2026-08-21T12:00:00+08:00', longitude: 121.49, latitude: 31.24, speed: 62 },
-  { timestamp: '2026-08-21T13:00:00+08:00', longitude: 121.5, latitude: 31.245, speed: 48 },
-  { timestamp: '2026-08-21T14:00:00+08:00', longitude: 121.51, latitude: 31.25, speed: 35 },
-]
-
-const livePositions: Record<number, PositionPoint> = {
-  201: {
-    vehicleId: 201,
-    cargoId: 101,
-    longitude: 121.505,
-    latitude: 31.248,
-    speed: 42,
-    timestamp: nowIso(),
-  },
-  202: {
-    vehicleId: 202,
-    cargoId: 102,
-    longitude: 121.46,
-    latitude: 31.22,
-    speed: 28,
-    timestamp: nowIso(),
-  },
-  203: {
-    vehicleId: 203,
-    longitude: 121.44,
-    latitude: 31.21,
-    speed: 0,
-    timestamp: nowIso(),
-  },
+let threshold: ThresholdConfig = {
+  id: 1,
+  lightThresholdOn: 30,
+  lightThresholdOff: 80,
+  heartbeatTimeout: 60,
+  updatedAt: now(),
 }
 
-export function createMockApi(): LogisticsApi {
+let controlLogs: ControlLog[] = []
+let controlSeq = 1
+
+function pageOf<T>(list: T[], page = 1, pageSize = 10): PageResult<T> {
+  const start = (page - 1) * pageSize
+  return { total: list.length, records: list.slice(start, start + pageSize) }
+}
+
+export function createMockApi(): StreetLightApi {
   return {
-    async login(username, _password, role) {
+    async register(username, password, role = 'MUNICIPAL_STAFF') {
+      if (!username.trim() || !password.trim()) return fail('用户名和密码不能为空')
+      if (users.some((u) => u.username === username)) return fail('用户名已存在')
+      users.push({ id: users.length + 1, username, password, role })
+      return ok('注册成功')
+    },
+    async login(username, password) {
+      const u = users.find((x) => x.username === username && x.password === password)
+      if (!u) return fail('用户名或密码错误')
       return ok({
-        token: `mock-${role}-${Date.now()}`,
-        userId: 1,
-        username: username || ROLE_FALLBACK[role],
-        role,
-      })
+        token: `mock-${u.role}-${Date.now()}`,
+        userId: u.id,
+        username: u.username,
+        role: u.role,
+      } satisfies UserSession)
     },
-    async logout() {
-      return ok(null)
+    async listDevices(params) {
+      let list = [...devices]
+      if (params.deviceName) list = list.filter((d) => d.deviceName.includes(params.deviceName!))
+      if (params.status) list = list.filter((d) => d.status === params.status)
+      if (params.onlineStatus) list = list.filter((d) => d.onlineStatus === params.onlineStatus)
+      return ok(pageOf(list, params.page, params.pageSize))
     },
-    async listVehicles() {
-      return ok([...vehicles])
-    },
-    async createVehicle(body) {
-      const v: Vehicle = { ...body, id: vehicles.length + 200, status: 0 }
-      vehicles = [...vehicles, v]
-      return ok(v)
-    },
-    async listCargos() {
-      return ok([...cargos])
-    },
-    async listBindings() {
-      return ok([...bindings])
-    },
-    async createBinding(cargoId, vehicleId) {
-      if (bindings.some((b) => b.cargoId === cargoId)) {
-        return { code: 409, message: '货物已绑定', data: null as unknown as Binding }
+    async getDevice(id) {
+      const d = devices.find((x) => x.id === id)
+      if (!d) return fail('设备不存在')
+      const latest = [...lights].reverse().find((l) => l.deviceId === id)
+      const detail: DeviceDetail = {
+        ...d,
+        latestLightIntensity: latest?.lightIntensity ?? null,
+        activeAlarmCount: alarms.filter((a) => a.deviceId === id && a.status === 'ACTIVE').length,
       }
-      const b: Binding = { id: bindings.length + 1, cargoId, vehicleId, createdAt: nowIso() }
-      bindings = [...bindings, b]
-      cargos = cargos.map((c) =>
-        c.id === cargoId ? { ...c, vehicleId, status: c.status === 'pending' ? 'loaded' : c.status } : c,
-      )
-      return ok(b)
+      return ok(detail)
     },
-    async deleteBinding(id) {
-      const hit = bindings.find((b) => b.id === id)
-      bindings = bindings.filter((b) => b.id !== id)
-      if (hit) {
-        cargos = cargos.map((c) =>
-          c.id === hit.cargoId ? { ...c, vehicleId: undefined, status: 'pending' } : c,
-        )
+    async addDevice(body) {
+      if (devices.some((d) => d.deviceSn === body.deviceSn)) return fail('序列号已存在')
+      const d: Device = {
+        id: devices.length + 1,
+        deviceName: body.deviceName,
+        deviceSn: body.deviceSn,
+        status: 'OFF',
+        onlineStatus: 'OFFLINE',
+        lastHeartbeatTime: null,
+        createdAt: now(),
       }
-      return ok(null)
+      devices = [d, ...devices]
+      return ok('添加成功')
     },
-    async vehiclePositions() {
-      return ok(Object.values(livePositions))
+    async updateDevice(id, body) {
+      devices = devices.map((d) => (d.id === id ? { ...d, deviceName: body.deviceName } : d))
+      return ok('修改成功')
     },
-    async cargoPosition(cargoId) {
-      const cargo = cargos.find((c) => c.id === cargoId)
-      const pos = cargo?.vehicleId ? livePositions[cargo.vehicleId] : undefined
-      if (!pos) return { code: 404, message: '无位置', data: null as unknown as PositionPoint }
-      return ok({ ...pos, cargoId })
+    async deleteDevice(id) {
+      devices = devices.filter((d) => d.id !== id)
+      return ok('删除成功')
     },
-    async cargoTrack(cargoId) {
-      return ok({ cargoId, points: baseTrack })
+    async deviceStatistics() {
+      const stats: DeviceStatistics = {
+        totalCount: devices.length,
+        onlineCount: devices.filter((d) => d.onlineStatus === 'ONLINE').length,
+        offlineCount: devices.filter((d) => d.onlineStatus === 'OFFLINE').length,
+        onCount: devices.filter((d) => d.status === 'ON').length,
+        offCount: devices.filter((d) => d.status === 'OFF').length,
+      }
+      return ok(stats)
     },
-    async cargoEta(cargoId) {
+    async switchDevice(id, status) {
+      const d = devices.find((x) => x.id === id)
+      if (!d) return fail('设备不存在')
+      devices = devices.map((x) => (x.id === id ? { ...x, status } : x))
+      controlLogs = [
+        {
+          id: controlSeq++,
+          deviceId: id,
+          deviceName: d.deviceName,
+          operatorId: 1,
+          operatorName: 'admin',
+          command: status === 'ON' ? 'MANUAL_ON' : 'MANUAL_OFF',
+          source: 'MANUAL',
+          result: 'SUCCESS',
+          createdAt: now(),
+        },
+        ...controlLogs,
+      ]
+      return ok({ command: status === 'ON' ? 'MANUAL_ON' : 'MANUAL_OFF' })
+    },
+    async listLightReadings(params) {
+      let list = [...lights].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+      if (params.deviceId) list = list.filter((l) => l.deviceId === params.deviceId)
+      return ok(pageOf(list, params.page, params.pageSize))
+    },
+    async latestLight(deviceId) {
+      const latest = [...lights].reverse().find((l) => l.deviceId === deviceId)
+      if (!latest) return fail('暂无光照数据')
       return ok({
-        cargoId,
-        eta: '2026-08-21T18:30:00+08:00',
-        remainingKm: 120.5,
-        remainingMinutes: 150,
-      })
+        deviceId,
+        lightIntensity: latest.lightIntensity,
+        createdAt: latest.createdAt,
+      } satisfies LatestLight)
     },
-    async listAlarms() {
-      return ok([...alarms].sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1)))
+    async lightTrend(deviceId) {
+      const points: TrendPoint[] = lights
+        .filter((l) => l.deviceId === deviceId)
+        .map((l) => ({ time: l.createdAt, value: l.lightIntensity }))
+      return ok(points)
+    },
+    async listAlarms(params) {
+      let list = [...alarms]
+      if (params.deviceId) list = list.filter((a) => a.deviceId === params.deviceId)
+      if (params.status) list = list.filter((a) => a.status === params.status)
+      return ok(pageOf(list, params.page, params.pageSize))
     },
     async resolveAlarm(id) {
-      alarms = alarms.map((a) => (a.id === id ? { ...a, status: 'resolved' } : a))
-      const hit = alarms.find((a) => a.id === id)!
-      return ok(hit)
+      const hit = alarms.find((a) => a.id === id)
+      if (!hit) return fail('告警不存在')
+      if (hit.status === 'RESOLVED') return fail('已解决')
+      alarms = alarms.map((a) =>
+        a.id === id ? { ...a, status: 'RESOLVED', resolvedAt: now() } : a,
+      )
+      return ok('处理成功')
     },
-    async dispatch(body) {
-      const cmd: DispatchCommand = {
-        commandId: `CMD-${Date.now()}`,
-        vehicleId: body.vehicleId,
-        type: body.type,
-        message: body.message,
-        targetLongitude: body.targetLongitude,
-        targetLatitude: body.targetLatitude,
-        timestamp: nowIso(),
+    async alarmStatistics() {
+      const active = alarms.filter((a) => a.status === 'ACTIVE')
+      const map = new Map<string, number>()
+      for (const a of active) map.set(a.alarmType, (map.get(a.alarmType) ?? 0) + 1)
+      const stats: AlarmStatistics = {
+        activeCount: active.length,
+        byType: [...map.entries()].map(([alarmType, count]) => ({ alarmType, count })),
       }
-      dispatches = [cmd, ...dispatches]
-      return ok(cmd)
+      return ok(stats)
     },
-    async listDispatch(vehicleId) {
-      const list = vehicleId ? dispatches.filter((d) => d.vehicleId === vehicleId) : dispatches
-      return ok(list)
+    async getThreshold() {
+      return ok(threshold)
     },
-    async updateCargoStatus(cargoId, status) {
-      cargos = cargos.map((c) => (c.id === cargoId ? { ...c, status } : c))
-      return ok(cargos.find((c) => c.id === cargoId)!)
+    async updateThreshold(body) {
+      if (body.lightThresholdOn >= body.lightThresholdOff) return fail('开灯阈值必须小于关灯阈值')
+      threshold = { ...threshold, ...body, updatedAt: now() }
+      return ok('更新成功')
+    },
+    async listControlLogs(params) {
+      let list = [...controlLogs]
+      if (params.deviceId) list = list.filter((c) => c.deviceId === params.deviceId)
+      return ok(pageOf(list, params.page, params.pageSize))
     },
   }
 }
 
-const ROLE_FALLBACK: Record<Role, string> = {
-  shipper: '货主演示',
-  warehouse: '仓库演示',
-  dispatcher: '调度演示',
-  driver: '司机演示',
-  admin: '管理员演示',
-}
-
-/** nudge mock positions for WS simulation */
-export function tickMockPositions(): PositionPoint[] {
-  const p = livePositions[201]
-  if (p) {
-    livePositions[201] = {
-      ...p,
-      longitude: p.longitude + (Math.random() - 0.4) * 0.001,
-      latitude: p.latitude + (Math.random() - 0.45) * 0.0008,
-      speed: 30 + Math.random() * 25,
-      timestamp: nowIso(),
-    }
+/** Mock 实时：缓慢抖动设备 1 的光照，供 dashboard 轮询感 */
+export function mockTickLight(): LatestLight | null {
+  const d = devices.find((x) => x.id === 1)
+  if (!d || d.onlineStatus !== 'ONLINE') return null
+  const intensity = 25 + Math.random() * 60
+  const row: LightReading = {
+    id: lightSeq++,
+    deviceId: 1,
+    deviceName: d.deviceName,
+    lightIntensity: intensity,
+    createdAt: now(),
   }
-  return Object.values(livePositions)
-}
-
-export function pushMockAlarm(partial?: Partial<Alarm>): Alarm {
-  const a: Alarm = {
-    id: 5000 + alarms.length + 1,
-    vehicleId: 201,
-    cargoId: 101,
-    alarmType: 'abnormal_open',
-    alarmLevel: 3,
-    description: '杜邦开箱信号触发',
-    status: 'active',
-    timestamp: nowIso(),
-    ...partial,
-  }
-  alarms = [a, ...alarms]
-  return a
+  lights = [row, ...lights].slice(0, 200)
+  return { deviceId: 1, lightIntensity: intensity, createdAt: row.createdAt }
 }

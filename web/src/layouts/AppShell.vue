@@ -1,46 +1,30 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useRealtimeStore } from '../stores/realtime'
-import type { Role } from '../types/domain'
+import { isMockMode } from '../api/client'
 
 const auth = useAuthStore()
 const realtime = useRealtimeStore()
 const route = useRoute()
 const router = useRouter()
 
-const nav = computed(() => {
-  const role = auth.role
-  const all = [
-    { to: '/warehouse', label: '车辆绑定', roles: ['warehouse', 'admin'] as Role[] },
-    { to: '/track', label: '在途追踪', roles: ['shipper', 'admin'] as Role[] },
-    { to: '/dispatch', label: '调度总览', roles: ['dispatcher', 'admin'] as Role[] },
-    { to: '/driver', label: '状态上报', roles: ['driver', 'admin'] as Role[] },
-    { to: '/alarms', label: '告警日志', roles: ['admin', 'dispatcher', 'shipper'] as Role[] },
-  ]
-  if (!role) return []
-  return all.filter((n) => n.roles.includes(role))
-})
+const nav = [
+  { to: '/dashboard', label: '总览' },
+  { to: '/devices', label: '设备' },
+  { to: '/lights', label: '光照' },
+  { to: '/alarms', label: '告警' },
+  { to: '/threshold', label: '阈值', admin: true },
+  { to: '/logs', label: '控制日志' },
+]
 
 onMounted(() => realtime.connect())
 
-async function clearSessionAndGoLogin(query?: Record<string, string>) {
+async function onLogout() {
   realtime.disconnect()
   await auth.logout()
-  router.push({ name: 'login', query })
-}
-
-async function onLogout() {
-  await clearSessionAndGoLogin()
-}
-
-/** 切换角色必须重新输入账号密码，禁止免密改 session */
-async function onSwitchRole() {
-  await clearSessionAndGoLogin({
-    switch: '1',
-    role: auth.role ?? 'shipper',
-  })
+  router.push({ name: 'login' })
 }
 </script>
 
@@ -48,21 +32,26 @@ async function onSwitchRole() {
   <div class="shell">
     <aside class="rail">
       <div class="brand">
-        <p class="brand-mark">在途</p>
-        <p class="brand-sub">智慧物流控制台</p>
+        <p class="mark">灯廊</p>
+        <p class="sub">智慧路灯控制台</p>
       </div>
       <nav>
-        <RouterLink v-for="item in nav" :key="item.to" :to="item.to" class="nav-link">
+        <RouterLink
+          v-for="item in nav.filter((n) => !n.admin || auth.isAdmin)"
+          :key="item.to"
+          :to="item.to"
+          class="nav-link"
+        >
           {{ item.label }}
         </RouterLink>
       </nav>
-      <div class="rail-foot">
-        <p class="role-now">
-          当前角色
+      <div class="foot">
+        <p class="who">
+          {{ auth.session?.username }}
           <strong>{{ auth.roleLabel }}</strong>
         </p>
-        <button type="button" class="ghost" @click="onSwitchRole">切换角色</button>
-        <button type="button" class="ghost" @click="onLogout">退出</button>
+        <p class="mode mono">{{ isMockMode ? 'MOCK' : 'HTTP' }} · {{ realtime.connected ? 'LIVE' : 'OFF' }}</p>
+        <button type="button" class="ghost" @click="onLogout">退出登录</button>
       </div>
     </aside>
 
@@ -70,14 +59,13 @@ async function onSwitchRole() {
       <header class="top">
         <div>
           <p class="eyebrow mono">{{ route.meta.title }}</p>
-          <h1>{{ auth.roleLabel }}工作台</h1>
+          <h1>{{ route.meta.title }}</h1>
         </div>
-        <div class="live" :data-on="realtime.connected">
-          <span class="live-dot" />
-          {{ realtime.connected ? '实时链路' : '离线' }}
+        <div class="lamp" :data-on="realtime.connected">
+          <span class="bulb" />
+          实时链路
         </div>
       </header>
-
       <main class="content">
         <RouterView v-slot="{ Component }">
           <Transition name="fade" mode="out-in">
@@ -91,9 +79,9 @@ async function onSwitchRole() {
       <div v-if="realtime.latestAlarm" class="toast" role="alert">
         <div>
           <strong>新告警</strong>
-          <p>{{ realtime.latestAlarm.description }}</p>
+          <p>{{ realtime.latestAlarm.deviceName }} · {{ realtime.latestAlarm.message }}</p>
         </div>
-        <button type="button" @click="realtime.clearAlarmToast()">知道了</button>
+        <button type="button" @click="realtime.clearAlarmToast()">关闭</button>
       </div>
     </Transition>
   </div>
@@ -102,158 +90,142 @@ async function onSwitchRole() {
 <style scoped>
 .shell {
   display: grid;
-  grid-template-columns: var(--shell-rail) 1fr;
+  grid-template-columns: var(--rail) 1fr;
   min-height: 100vh;
 }
-
 .rail {
   display: flex;
   flex-direction: column;
-  padding: 28px 18px;
-  background: linear-gradient(180deg, #1a2332 0%, #243044 100%);
-  color: #f4f6f8;
+  padding: 26px 16px;
+  background: linear-gradient(180deg, #121820 0%, #1c2733 100%);
+  color: #f2f4f7;
 }
-
-.brand-mark {
+.mark {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 42px;
+  font-size: 44px;
   line-height: 0.9;
-  letter-spacing: 0.08em;
-  color: var(--signal);
+  color: var(--sodium);
+  letter-spacing: 0.12em;
 }
-
-.brand-sub {
-  margin: 8px 0 28px;
+.sub {
+  margin: 8px 0 24px;
   font-size: 13px;
-  opacity: 0.72;
+  opacity: 0.7;
 }
-
 .nav-link {
   display: block;
   padding: 10px 12px;
   margin-bottom: 4px;
   border-radius: var(--radius);
-  color: rgba(244, 246, 248, 0.78);
-  transition: background 0.2s ease, color 0.2s ease;
+  color: rgba(242, 244, 247, 0.75);
 }
 .nav-link:hover,
 .nav-link.router-link-active {
-  background: rgba(232, 163, 23, 0.16);
+  background: rgba(240, 162, 2, 0.16);
   color: #fff;
 }
-
-.rail-foot {
+.foot {
   margin-top: auto;
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
-
-.role-now {
-  margin: 0 0 4px;
-  font-size: 12px;
-  opacity: 0.85;
+.who {
+  margin: 0;
+  font-size: 13px;
   display: grid;
-  gap: 4px;
+  gap: 2px;
 }
-.role-now strong {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--signal);
+.who strong {
+  color: var(--sodium);
 }
-
+.mode {
+  margin: 0;
+  font-size: 11px;
+  opacity: 0.55;
+}
 .ghost {
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.22);
   background: transparent;
   color: #fff;
-  padding: 8px 10px;
+  padding: 8px;
   border-radius: var(--radius);
   cursor: pointer;
 }
-
 .main {
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  min-width: 0;
 }
-
 .top {
   display: flex;
   justify-content: space-between;
   align-items: end;
-  padding: 28px 32px 12px;
+  padding: 26px 28px 10px;
 }
-
 .eyebrow {
   margin: 0 0 4px;
   color: var(--ink-soft);
-  font-size: 12px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
 }
-
 .top h1 {
-  font-size: 34px;
+  font-size: 32px;
   font-weight: 600;
 }
-
-.live {
+.lamp {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-radius: 999px;
-  background: var(--paper-elevated);
   border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 999px;
   font-size: 13px;
 }
-.live-dot {
-  width: 8px;
-  height: 8px;
+.bulb {
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: var(--line);
+  background: var(--offline);
 }
-.live[data-on='true'] .live-dot {
-  background: var(--ok);
-  box-shadow: 0 0 0 4px rgba(47, 125, 74, 0.2);
+.lamp[data-on='true'] .bulb {
+  background: var(--sodium);
+  box-shadow: 0 0 10px var(--sodium);
 }
-
 .content {
-  padding: 8px 32px 32px;
+  padding: 8px 28px 28px;
   flex: 1;
 }
-
 .toast {
   position: fixed;
-  right: 24px;
-  bottom: 24px;
-  z-index: 1000;
+  right: 20px;
+  bottom: 20px;
+  z-index: 50;
   display: flex;
-  gap: 16px;
+  gap: 14px;
   align-items: center;
   max-width: 360px;
-  padding: 14px 16px;
-  background: #1a2332;
+  padding: 14px;
+  background: #121820;
   color: #fff;
   border-left: 4px solid var(--danger);
   box-shadow: var(--shadow);
 }
 .toast p {
   margin: 4px 0 0;
-  font-size: 14px;
-  opacity: 0.86;
+  font-size: 13px;
+  opacity: 0.85;
 }
 .toast button {
   border: 0;
-  background: var(--signal);
-  color: #1a2332;
+  background: var(--sodium);
+  color: #121820;
   padding: 8px 10px;
-  border-radius: var(--radius);
   cursor: pointer;
-  white-space: nowrap;
 }
-
-@media (max-width: 860px) {
+@media (max-width: 840px) {
   .shell {
     grid-template-columns: 1fr;
   }
@@ -261,26 +233,12 @@ async function onSwitchRole() {
     flex-direction: row;
     flex-wrap: wrap;
     gap: 8px;
-    align-items: center;
   }
   .brand {
     width: 100%;
   }
-  .brand-mark {
-    font-size: 32px;
-  }
-  .brand-sub {
-    margin-bottom: 8px;
-  }
-  .rail-foot {
+  .foot {
     width: 100%;
-    grid-template-columns: 1fr auto;
-    align-items: end;
-  }
-  .top,
-  .content {
-    padding-left: 16px;
-    padding-right: 16px;
   }
 }
 </style>
