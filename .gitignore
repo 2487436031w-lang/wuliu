@@ -1,0 +1,22 @@
+# --- root ---
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/
+*.iml
+
+# BearPi/OpenHarmony 源码（体积巨大，本地在 D:\ohos\bearpi-hm_nano）
+firmware/bearpi-hm_nano/
+
+# --- Java / Maven ---
+**/target/
+**/.classpath
+**/.project
+**/.settings/
+
+# --- secrets ---
+**/application-secret.yml
+**/*.pem
+**/.env
+**/.env.*
