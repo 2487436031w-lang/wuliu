@@ -15,8 +15,17 @@
 ## 新组员 10 分钟（只跑云端 + Web）
 
 ```powershell
-cd wuliu   # 或你的 clone 目录
-git pull
+git clone https://github.com/xikunn/wuliu.git
+cd wuliu
+powershell -ExecutionPolicy Bypass -File scripts\team-bootstrap.ps1
+```
+
+已有仓库时：
+
+```powershell
+cd wuliu
+git checkout main
+git pull origin main
 powershell -ExecutionPolicy Bypass -File scripts\team-bootstrap.ps1
 ```
 

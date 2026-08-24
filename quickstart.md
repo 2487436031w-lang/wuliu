@@ -24,10 +24,12 @@
 ### 首次
 
 ```powershell
-git clone git@github.com:xikunn/wuliu.git
+git clone https://github.com/xikunn/wuliu.git
 cd wuliu
 powershell -ExecutionPolicy Bypass -File scripts\team-bootstrap.ps1
 ```
+
+（SSH 可用时：`git clone git@github.com:xikunn/wuliu.git`）
 
 另开终端：
 
@@ -45,19 +47,23 @@ npm run dev
 
 `team-bootstrap` 会自动生成本机 `application-secret.yml`、`web/.env.local`（若尚不存在），并起 Docker + 后端。
 
-### 日常
+### 日常同步与启动
 
 ```powershell
-git pull
+cd wuliu
+git checkout main
+git pull origin main
 
 # 后端（含 Docker 依赖）
 cd smart-street-light-master
 powershell -ExecutionPolicy Bypass -File scripts\run-local.ps1
 
-# 前端（另一终端）
-cd web
+# 前端（另一终端，仍在仓库根下）
+cd ..\web
 npm run dev
 ```
+
+仓库：https://github.com/xikunn/wuliu
 
 只要依赖、不跑 jar：
 

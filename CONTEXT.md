@@ -50,9 +50,11 @@ BearPi / 传感器上报光照与状态 → MQTT/HTTP → Spring Boot 规则（�
 
 ## Git / 协作
 
-- 上游：`xikunn/wuliu`（合作者可直接 push / 合 PR）  
-- 组员先读根目录 `README.md` 与 `docs/collab/TEAM-ONBOARDING.md`  
-- GitHub：**SSH 可用**（HTTPS:443 常不通）
+- 仓库：https://github.com/xikunn/wuliu （合作者可直接 push / 合 PR）  
+- 组员首读：`quickstart.md` → `README.md` → `docs/collab/TEAM-ONBOARDING.md`  
+- clone：`git clone https://github.com/xikunn/wuliu.git`  
+- 同步：`git checkout main` → `git pull origin main`  
+- GitHub 若 HTTPS 不通可用 SSH：`git@github.com:xikunn/wuliu.git`
 
 ## 硬约束
 
