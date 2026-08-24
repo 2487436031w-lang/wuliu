@@ -3,16 +3,22 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { api, isMockMode } from '../api/client'
 import { useRealtimeStore } from '../stores/realtime'
-import type { AlarmStatistics, DeviceStatistics } from '../types/domain'
+import type { AlarmStatistics, DeviceStatistics, ThresholdConfig } from '../types/domain'
 
 const realtime = useRealtimeStore()
 const stats = ref<DeviceStatistics | null>(null)
 const alarmStats = ref<AlarmStatistics | null>(null)
+const threshold = ref<ThresholdConfig | null>(null)
 
 async function load() {
-  const [d, a] = await Promise.all([api.deviceStatistics(), api.alarmStatistics()])
+  const [d, a, t] = await Promise.all([
+    api.deviceStatistics(),
+    api.alarmStatistics(),
+    api.getThreshold(),
+  ])
   if (d.code === 200) stats.value = d.data
   if (a.code === 200) alarmStats.value = a.data
+  if (t.code === 200) threshold.value = t.data
 }
 
 onMounted(load)
@@ -72,9 +78,27 @@ const alarmTile = computed(() => ({
           {{ realtime.latestLight ? realtime.latestLight.lightIntensity.toFixed(1) : '—' }}
           <span>lux</span>
         </p>
-        <p class="mode mono">{{ isMockMode ? 'Mock' : 'WebSocket' }}</p>
+        <p class="mode mono">{{ isMockMode ? 'Mock 定时模拟' : '后端 WebSocket' }}</p>
+        <p v-if="!isMockMode" class="hint-sub">
+          设备名含「人民路」等为数据库测试数据；板子实时数据需 MQTT 上报（STREETLIGHT 固件）。
+        </p>
       </div>
-      <p class="hint">低于开灯阈值自动开灯；高于关灯阈值自动关灯（后端判定）。</p>
+      <p class="hint">
+        开灯 &lt; {{ threshold?.lightThresholdOn ?? '—' }} lux ·
+        关灯 &gt; {{ threshold?.lightThresholdOff ?? '—' }} lux
+        <RouterLink to="/threshold" class="threshold-link">修改阈值</RouterLink>
+      </p>
+    </RouterLink>
+
+    <RouterLink v-if="threshold" to="/threshold" class="threshold-strip link-card">
+      <div>
+        <p class="label">开关灯阈值</p>
+        <p class="threshold-values mono">
+          低于 <strong>{{ threshold.lightThresholdOn }}</strong> lux 自动开灯 ·
+          高于 <strong>{{ threshold.lightThresholdOff }}</strong> lux 自动关灯
+        </p>
+      </div>
+      <span class="edit">去设置 →</span>
     </RouterLink>
 
     <div class="grid" v-if="stats">
@@ -140,6 +164,13 @@ const alarmTile = computed(() => ({
   font-size: 11px;
   opacity: 0.45;
 }
+.hint-sub {
+  margin: 6px 0 0;
+  font-size: 12px;
+  opacity: 0.55;
+  max-width: 36ch;
+  line-height: 1.4;
+}
 .big {
   margin: 6px 0 0;
   font-size: 56px;
@@ -158,6 +189,34 @@ const alarmTile = computed(() => ({
   font-size: 14px;
   opacity: 0.75;
   line-height: 1.45;
+}
+.threshold-link {
+  display: inline-block;
+  margin-top: 6px;
+  color: var(--sodium);
+  text-decoration: underline;
+}
+.threshold-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.threshold-values {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+.threshold-values strong {
+  color: var(--sodium-deep);
+}
+.edit {
+  font-size: 13px;
+  color: var(--ink-soft);
+  white-space: nowrap;
 }
 .grid {
   display: grid;

@@ -21,6 +21,10 @@ onMounted(async () => {
 })
 
 async function save() {
+  if (form.lightThresholdOn >= form.lightThresholdOff) {
+    msg.value = '开灯阈值必须小于关灯阈值'
+    return
+  }
   const res = await api.updateThreshold({ ...form })
   msg.value = res.code === 200 ? res.data : res.errorMsg || '失败'
   if (res.code === 200) {
@@ -32,15 +36,18 @@ async function save() {
 
 <template>
   <div class="card">
-    <h2>阈值配置</h2>
-    <p class="desc">管理员可改。光照 &lt; 开灯阈值且当前 OFF → AUTO_ON；&gt; 关灯阈值且 ON → AUTO_OFF。</p>
+    <h2>开关灯阈值</h2>
+    <p class="desc">
+      光照低于「开灯阈值」且灯为关 → 云端自动下发开灯；高于「关灯阈值」且灯为开 → 自动关灯。
+      判定在后端执行，板子只上报光照并执行指令。
+    </p>
     <label>
-      开灯阈值
-      <input v-model.number="form.lightThresholdOn" type="number" />
+      开灯阈值（lux）
+      <input v-model.number="form.lightThresholdOn" type="number" min="0" step="1" />
     </label>
     <label>
-      关灯阈值
-      <input v-model.number="form.lightThresholdOff" type="number" />
+      关灯阈值（lux）
+      <input v-model.number="form.lightThresholdOff" type="number" min="0" step="1" />
     </label>
     <label>
       心跳超时（秒）

@@ -13,7 +13,9 @@ export default defineConfig({
     global: 'globalThis',
   },
   server: {
+    host: true,
     port: 5173,
+    strictPort: true,
     proxy: {
       '/users': { target: 'http://localhost:8080', changeOrigin: true },
       '/devices': { target: 'http://localhost:8080', changeOrigin: true },

@@ -28,19 +28,12 @@ $statusPayload = (@{
 $dockerNet = @("--network", "container:$EmqxContainer")
 $brokerHost = "127.0.0.1"
 
-Write-Host ">>> 发布光照: smart-light/$DeviceSn/light"
-Write-Host "    $lightPayload"
-docker run --rm @dockerNet eclipse-mosquitto:2 mosquitto_pub `
-    -h $brokerHost -p $BrokerPort `
-    -t "smart-light/$DeviceSn/light" `
-    -m $lightPayload
-
-Write-Host ">>> 发布状态: smart-light/$DeviceSn/status"
-Write-Host "    $statusPayload"
-docker run --rm @dockerNet eclipse-mosquitto:2 mosquitto_pub `
-    -h $brokerHost -p $BrokerPort `
-    -t "smart-light/$DeviceSn/status" `
-    -m $statusPayload
+function Publish-Mqtt([string]$Topic, [string]$Payload) {
+    # PowerShell 单引号包住 sh -c，Linux 再展开 $MQTT_PAYLOAD，避免空格/引号被拆
+    $env:MQTT_PAYLOAD = $Payload
+    docker run --rm --network "container:$EmqxContainer" -e MQTT_PAYLOAD eclipse-mosquitto:2 `
+        sh -c 'mosquitto_pub -h 127.0.0.1 -p 1883 -t '"$Topic"' -m "$MQTT_PAYLOAD"'
+}
 
 Write-Host ""
 Write-Host "验收："

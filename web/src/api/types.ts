@@ -44,7 +44,7 @@ export interface StreetLightApi {
     deviceId?: number
     status?: string
   }): Promise<ApiResult<PageResult<AlarmLog>>>
-  resolveAlarm(id: number): Promise<ApiResult<string>>
+  resolveAlarm(id: string): Promise<ApiResult<string>>
   alarmStatistics(): Promise<ApiResult<AlarmStatistics>>
   getThreshold(): Promise<ApiResult<ThresholdConfig>>
   updateThreshold(body: {

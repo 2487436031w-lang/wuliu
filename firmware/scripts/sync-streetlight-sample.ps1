@@ -16,5 +16,13 @@ New-Item -ItemType Directory -Force -Path (Join-Path $dest 'src') | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $dest 'include') | Out-Null
 
 Copy-Item -Path (Join-Path $src '*') -Destination $dest -Recurse -Force
+
+$configExample = Join-Path $dest 'streetlight_config.h.example'
+$config = Join-Path $dest 'streetlight_config.h'
+if (-not (Test-Path $config)) {
+    Copy-Item $configExample $config
+    Write-Host "Created $config from example — edit WiFi/Broker before compile"
+}
+
 Write-Host "Synced -> $dest"
 Write-Host "Then: enable-sample.ps1 -Sample STREETLIGHT"

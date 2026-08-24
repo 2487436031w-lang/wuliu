@@ -67,7 +67,8 @@ export interface TrendPoint {
 }
 
 export interface AlarmLog {
-  id: number
+  /** 雪花 ID，必须当字符串用，Number() 会丢精度导致处理失败 */
+  id: string
   deviceId: number
   deviceName: string
   alarmType: string

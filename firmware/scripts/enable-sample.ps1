@@ -48,6 +48,7 @@ if (-not $enabled) {
     throw "Target not found in BUILD.gn: $target"
 }
 
-Set-Content -Path $buildGn -Value $out -Encoding UTF8
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
+[System.IO.File]::WriteAllLines($buildGn, $out, $utf8NoBom)
 Write-Host "BUILD.gn updated: enabled $Sample -> $target"
-Write-Host "Next: DevEco Studio -> Build -> Upload"
+Write-Host "Next: compile in WSL (bash /mnt/d/ohos/tools/compile-c3.sh), then Device Tool Upload"

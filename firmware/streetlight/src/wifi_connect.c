@@ -50,6 +50,32 @@ WifiErrorCode error;
 
 #define SELECT_WLAN_PORT "wlan0"
 
+static void trim_wifi_ssid(char *dst, const char *src, size_t cap)
+{
+    size_t n = 0;
+    while (n + 1 < cap && src[n] != '\0') {
+        dst[n] = src[n];
+        n++;
+    }
+    dst[n] = '\0';
+    while (n > 0 && (dst[n - 1] == ' ' || dst[n - 1] == '\t')) {
+        dst[--n] = '\0';
+    }
+}
+
+static int ssid_matches(const char *want, const char *got)
+{
+    char w[33];
+    char g[33];
+    trim_wifi_ssid(w, want, sizeof(w));
+    trim_wifi_ssid(g, got, sizeof(g));
+    if (strcmp(w, g) == 0) {
+        return 1;
+    }
+    /* 扫描结果 SSID 缓冲区常有尾部空格 */
+    return strncmp(w, got, strlen(w)) == 0;
+}
+
 int WifiConnect(const char *ssid, const char *psk)
 {
     WifiScanInfo *info = NULL;
@@ -98,44 +124,69 @@ int WifiConnect(const char *ssid, const char *psk)
         error = GetScanInfoList(info, &size);
 
     }while(g_staScanSuccess != 1);
+
+    unsigned int ap_count = (unsigned int)ssid_count;
+
     //打印WiFi列表
     printf("********************\r\n");
-    for(uint8_t i = 0; i < ssid_count; i++)
+    for (unsigned int i = 0; i < ap_count; i++)
     {
         printf("no:%03d, ssid:%-30s, rssi:%5d\r\n", i+1, info[i].ssid, info[i].rssi/100);
     }
     printf("********************\r\n");
-    
+    printf("Target SSID: [%s]\r\n", ssid);
+
     //连接指定的WiFi热点
-    for(uint8_t i = 0; i < ssid_count; i++)
+    int matched_idx = -1;
+    for (unsigned int i = 0; i < ap_count; i++)
     {
-        if (strcmp(ssid, info[i].ssid) == 0)
-        {
-            int result;
+        if (ssid_matches(ssid, info[i].ssid)) {
+            matched_idx = (int)i;
+            break;
+        }
+    }
 
-            printf("Select:%3d wireless, Waiting...\r\n", i+1);
+    if (matched_idx < 0) {
+        printf("ERROR: No wifi as expected\r\n");
+        for (unsigned int i = 0; i < ap_count && i < 3; i++) {
+            printf("  scan[%d]=[%s]\r\n", (int)i, info[i].ssid);
+        }
+        while (1) {
+            osDelay(100);
+        }
+    }
 
-            //拷贝要连接的热点信息
-            WifiDeviceConfig select_ap_config = {0};
-            strcpy(select_ap_config.ssid, info[i].ssid);
-            strcpy(select_ap_config.preSharedKey, psk);
-            select_ap_config.securityType = SELECT_WIFI_SECURITYTYPE;
-
-            if (AddDeviceConfig(&select_ap_config, &result) == WIFI_SUCCESS)
-            {
-                if (ConnectTo(result) == WIFI_SUCCESS && WaitConnectResult() == 1)
-                {
-                    printf("WiFi connect succeed!\r\n");
-                    g_lwip_netif = netifapi_netif_find(SELECT_WLAN_PORT);
-                    break;
-                }
-            }
+    for (unsigned int i = (unsigned int)matched_idx; i < ap_count; i++)
+    {
+        if (!ssid_matches(ssid, info[i].ssid)) {
+            continue;
         }
 
-        if(i == ssid_count-1)
+        int result;
+        printf("Select:%3d wireless, Waiting...\r\n", i + 1);
+
+        WifiDeviceConfig select_ap_config = {0};
+        strcpy(select_ap_config.ssid, info[i].ssid);
+        strcpy(select_ap_config.preSharedKey, psk);
+        select_ap_config.securityType = SELECT_WIFI_SECURITYTYPE;
+
+        if (AddDeviceConfig(&select_ap_config, &result) == WIFI_SUCCESS)
         {
-            printf("ERROR: No wifi as expected\r\n");
-            while(1) osDelay(100);
+            if (ConnectTo(result) == WIFI_SUCCESS && WaitConnectResult() == 1)
+            {
+                printf("WiFi connect succeed!\r\n");
+                g_lwip_netif = netifapi_netif_find(SELECT_WLAN_PORT);
+                break;
+            }
+            printf("Connect failed for [%s], retry next match\r\n", info[i].ssid);
+        }
+    }
+
+    if (g_lwip_netif == NULL)
+    {
+        printf("ERROR: WiFi connect failed\r\n");
+        while (1) {
+            osDelay(100);
         }
     }
      //启动DHCP

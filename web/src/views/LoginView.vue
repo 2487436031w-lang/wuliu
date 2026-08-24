@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { apiMode, isHttpMode, isMockMode } from '../config/runtime'
 import type { Role } from '../types/domain'
 import { ROLE_LABEL } from '../types/domain'
 
@@ -15,6 +16,27 @@ const role = ref<Role>('MUNICIPAL_STAFF')
 const loading = ref(false)
 const error = ref('')
 const tip = ref('')
+const backendOk = ref<boolean | null>(null)
+
+async function checkBackend() {
+  if (!isHttpMode) {
+    backendOk.value = null
+    return
+  }
+  try {
+    const res = await fetch('/users/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: '__ping__', password: '__ping__' }),
+    })
+    const body = (await res.json()) as { code?: number }
+    backendOk.value = typeof body.code === 'number'
+  } catch {
+    backendOk.value = false
+  }
+}
+
+onMounted(checkBackend)
 
 async function submit() {
   loading.value = true
@@ -45,7 +67,18 @@ async function submit() {
       <h1>路灯亮起的一刻，城市才有夜班。</h1>
       <p class="lead">
         对齐 <code class="mono">smart-street-light-master</code>：设备、光照阈值、告警与 STOMP 推送。
-        Mock 演示账号 <span class="mono">admin / admin123</span>。
+      </p>
+      <p class="mode-badge mono" :data-mode="apiMode">
+        当前：{{ isMockMode ? 'Mock 内存演示' : 'HTTP 真后端' }}（{{ apiMode }}）
+      </p>
+      <p v-if="isHttpMode && backendOk === false" class="warn">
+        后端未响应。请先在 <code class="mono">smart-street-light-master</code> 启动 Java 服务（:8080）。
+      </p>
+      <p v-else-if="isHttpMode && backendOk" class="ok-hint">
+        后端已连通。账号来自 <code class="mono">sql/test-data.sql</code>：<span class="mono">admin / admin123</span>
+      </p>
+      <p v-else class="ok-hint">
+        Mock 演示账号 <span class="mono">admin / admin123</span>
       </p>
     </section>
 
@@ -120,6 +153,35 @@ async function submit() {
   color: var(--ink-soft);
   line-height: 1.55;
   font-size: 17px;
+}
+.mode-badge {
+  margin: 12px 0 0;
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+.mode-badge[data-mode='http'] {
+  border-color: var(--online);
+  color: var(--online);
+}
+.mode-badge[data-mode='mock'] {
+  border-color: var(--sodium-deep);
+  color: var(--sodium-deep);
+}
+.warn {
+  margin: 10px 0 0;
+  color: var(--danger);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.ok-hint {
+  margin: 10px 0 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.45;
 }
 .panel {
   justify-self: end;

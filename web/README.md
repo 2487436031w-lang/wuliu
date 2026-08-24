@@ -37,7 +37,7 @@ cp .env.example .env.local
 | `/devices` | 设备 CRUD + 手动开关 |
 | `/lights` | 光照列表与趋势 |
 | `/alarms` | 告警解决 |
-| `/threshold` | 阈值（ADMIN） |
+| `/threshold` | 开关灯阈值 + 心跳超时 |
 | `/logs` | 控制日志 |
 
 ## 模块 seam

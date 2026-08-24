@@ -2,6 +2,7 @@
 
 | Date | Who | Change | Reason |
 |------|-----|--------|--------|
+| 2026-08-23 | firmware+web+backend | BearPi 周期上报、告警 ID、阈值页、热点防火墙 | 真机 SN-RM-001 端到端联调 |
 | 2026-08-22 | firmware | BEARPI-PLAN + streetlight merged firmware skeleton | 板端 C3→D5→闭环路线 |
 | 2026-08-22 | frontend | WS page refresh, 401, mqtt-simulate.ps1 | HTTP 联调体验与 MQTT 模拟 |
 | 2026-08-22 | frontend | 总览卡片可点击跳转；待处理告警命名 | Dashboard/Devices/Alarms 路由筛选 |

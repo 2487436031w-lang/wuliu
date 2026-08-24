@@ -14,7 +14,7 @@
 
 #define DEVICE_SN           "SN-RM-001"
 
-/* 光照上报周期（秒） */
-#define LIGHT_REPORT_SEC    15
+/* 光照上报周期（秒，主循环约 1s 上报一次） */
+#define LIGHT_REPORT_SEC    1
 
 #endif

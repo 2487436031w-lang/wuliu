@@ -41,7 +41,7 @@ const routes: RouteRecordRaw[] = [
         path: 'threshold',
         name: 'threshold',
         component: () => import('../views/ThresholdView.vue'),
-        meta: { title: '阈值配置', admin: true },
+        meta: { title: '阈值配置' },
       },
       {
         path: 'logs',

@@ -70,7 +70,7 @@ for (let i = 0; i < 24; i++) {
 
 let alarms: AlarmLog[] = [
   {
-    id: 1,
+    id: '1',
     deviceId: 3,
     deviceName: '体育场路灯',
     alarmType: 'OFFLINE',
@@ -166,9 +166,10 @@ export function createMockApi(): StreetLightApi {
       return ok(stats)
     },
     async switchDevice(id, status) {
-      const d = devices.find((x) => x.id === id)
+      const deviceId = Number(id)
+      const d = devices.find((x) => x.id === deviceId)
       if (!d) return fail('设备不存在')
-      devices = devices.map((x) => (x.id === id ? { ...x, status } : x))
+      devices = devices.map((x) => (x.id === deviceId ? { ...x, status } : x))
       controlLogs = [
         {
           id: controlSeq++,
@@ -187,11 +188,12 @@ export function createMockApi(): StreetLightApi {
     },
     async listLightReadings(params) {
       let list = [...lights].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
-      if (params.deviceId) list = list.filter((l) => l.deviceId === params.deviceId)
+      if (params.deviceId) list = list.filter((l) => l.deviceId === Number(params.deviceId))
       return ok(pageOf(list, params.page, params.pageSize))
     },
     async latestLight(deviceId) {
-      const latest = [...lights].reverse().find((l) => l.deviceId === deviceId)
+      const id = Number(deviceId)
+      const latest = [...lights].reverse().find((l) => l.deviceId === id)
       if (!latest) return fail('暂无光照数据')
       return ok({
         deviceId,
@@ -200,8 +202,9 @@ export function createMockApi(): StreetLightApi {
       } satisfies LatestLight)
     },
     async lightTrend(deviceId) {
+      const id = Number(deviceId)
       const points: TrendPoint[] = lights
-        .filter((l) => l.deviceId === deviceId)
+        .filter((l) => l.deviceId === id)
         .map((l) => ({ time: l.createdAt, value: l.lightIntensity }))
       return ok(points)
     },

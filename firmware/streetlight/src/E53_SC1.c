@@ -83,6 +83,8 @@ void E53_SC1_Init(void)
 {
 	E53_SC1_IO_Init();
 	Init_BH1750();
+	Start_BH1750(); /* 连续测量模式，后续读数不必再等 1.2s */
+	osDelay(120);
 }
 /***************************************************************
 * 函数名称: E53_SC1_Read_Data
@@ -93,8 +95,6 @@ void E53_SC1_Init(void)
 float E53_SC1_Read_Data(void)
 {
 	int result;
-    Start_BH1750(); // 启动传感器采集数据
-	usleep(180000);
     WifiIotI2cData bh1750_i2c_data = { 0 };
     uint8_t recv_data[2] = { 0 };
     bh1750_i2c_data.receiveBuf = recv_data;
