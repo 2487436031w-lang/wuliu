@@ -4,6 +4,8 @@ BearPi 上报光照 → EMQX MQTT → Spring Boot → WebSocket → Vue 控制�
 
 ## 组员最快上手
 
+先看 **[quickstart.md](quickstart.md)**（规矩 + 常用命令）。
+
 ```powershell
 git clone <本仓地址>
 cd wuliu   # 目录名以实际为准
@@ -23,7 +25,7 @@ npm run dev
 - EMQX 控制台：http://localhost:18083 （`admin` / `public`）
 
 **完整说明（配置分工、板端、避免重复踩坑）：**  
-[`docs/collab/TEAM-ONBOARDING.md`](docs/collab/TEAM-ONBOARDING.md)
+[`docs/collab/TEAM-ONBOARDING.md`](docs/collab/TEAM-ONBOARDING.md) · [`quickstart.md`](quickstart.md)
 
 ## 目录
 

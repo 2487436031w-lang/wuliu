@@ -46,6 +46,7 @@ BearPi / 传感器上报光照与状态 → MQTT/HTTP → Spring Boot 规则（�
 | `docs/collab/TEAM-ONBOARDING.md` | **组员上手**：少重复配置 |
 | `scripts/team-bootstrap.ps1` | 一键复制模板 + 起 Docker/后端 |
 | `README.md` | 仓库入口 |
+| `quickstart.md` | **规矩 + 重要指令（组员首读）** |
 
 ## Git / 协作
 
