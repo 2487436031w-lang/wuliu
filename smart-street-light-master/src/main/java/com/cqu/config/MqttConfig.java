@@ -180,7 +180,7 @@ public class MqttConfig {
             MqttMessage msg = new MqttMessage(json.getBytes(StandardCharsets.UTF_8));
             msg.setQos(qos);
             mqttClient.publish(topic, msg);
-            log.debug("MQTT publish: topic={}, payload={}", topic, json);
+            log.info("MQTT 下发: topic={}, payload={}", topic, json);
         } catch (Exception e) {
             log.error("MQTT publish 失败: topic={}", topic, e);
         }
@@ -204,6 +204,10 @@ public class MqttConfig {
             String deviceSn = parts[1];
             String type = parts[2];
 
+            if (payload == null || payload.isBlank() || !payload.trim().startsWith("{")) {
+                log.warn("MQTT 消息不是 JSON，已丢弃: topic={}, payload={}", topic, payload);
+                return;
+            }
             Map<String, Object> data = OBJECT_MAPPER.readValue(payload, Map.class);
 
             switch (type) {

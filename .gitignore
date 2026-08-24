@@ -9,6 +9,11 @@ Thumbs.db
 # BearPi/OpenHarmony 源码（体积巨大，本地在 D:\ohos\bearpi-hm_nano）
 firmware/bearpi-hm_nano/
 
+# Cursor IDE 本地配置（skills/agents 为个人环境，不入库）
+.cursor/skills/
+.cursor/agents/
+.cursor/projects/
+
 # --- Java / Maven ---
 **/target/
 **/.classpath
@@ -20,3 +25,4 @@ firmware/bearpi-hm_nano/
 **/*.pem
 **/.env
 **/.env.*
+!**/.env.example

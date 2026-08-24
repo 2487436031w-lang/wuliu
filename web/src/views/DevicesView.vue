@@ -1,23 +1,59 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { api } from '../api/client'
+import { useLatestRequest, useRowAction } from '../composables/useLatestRequest'
+import { useRealtimeStore } from '../stores/realtime'
 import type { Device } from '../types/domain'
 
+function sortDevices(list: Device[]): Device[] {
+  return [...list].sort((a, b) => a.id - b.id)
+}
+
+const route = useRoute()
+const realtime = useRealtimeStore()
+const listRequest = useLatestRequest()
+const rowAction = useRowAction()
 const records = ref<Device[]>([])
 const total = ref(0)
 const msg = ref('')
 const form = reactive({ deviceName: '', deviceSn: '' })
 const filter = reactive({ deviceName: '', status: '', onlineStatus: '' })
 
-async function load() {
-  const res = await api.listDevices({ page: 1, pageSize: 50, ...filter })
-  if (res.code === 200) {
-    records.value = res.data.records
-    total.value = res.data.total
-  }
+function applyRouteFilter() {
+  filter.status = typeof route.query.status === 'string' ? route.query.status : ''
+  filter.onlineStatus =
+    typeof route.query.onlineStatus === 'string' ? route.query.onlineStatus : ''
 }
 
-onMounted(load)
+async function load() {
+  const res = await listRequest.run(() =>
+    api.listDevices({ page: 1, pageSize: 50, ...filter }),
+  )
+  if (!res || res.code !== 200) return
+  records.value = sortDevices(res.data.records)
+  total.value = res.data.total
+}
+
+onMounted(async () => {
+  applyRouteFilter()
+  await load()
+})
+
+watch(
+  () => route.query,
+  async () => {
+    applyRouteFilter()
+    await load()
+  },
+)
+
+watch(
+  () => realtime.deviceSyncTick,
+  async () => {
+    await load()
+  },
+)
 
 async function add() {
   const res = await api.addDevice({ ...form })
@@ -30,15 +66,31 @@ async function add() {
 }
 
 async function toggle(d: Device) {
+  const deviceId = d.id
+  const deviceName = d.deviceName
   const next = d.status === 'ON' ? 'OFF' : 'ON'
-  const res = await api.switchDevice(d.id, next)
-  msg.value = res.code === 200 ? `已下发 ${res.data.command}` : res.errorMsg || '失败'
-  await load()
+
+  await rowAction.run(deviceId, async () => {
+    records.value = records.value.map((row) =>
+      row.id === deviceId ? { ...row, status: next } : row,
+    )
+    const res = await api.switchDevice(deviceId, next)
+    if (res.code === 200) {
+      msg.value = `${deviceName}：已下发 ${res.data.command}`
+      await load()
+    } else {
+      msg.value = res.errorMsg || '失败'
+      await load()
+    }
+  })
 }
 
 async function remove(id: number) {
-  await api.deleteDevice(id)
-  await load()
+  await rowAction.run(id, async () => {
+    await api.deleteDevice(id)
+    msg.value = '已删除'
+    await load()
+  })
 }
 </script>
 
@@ -91,10 +143,21 @@ async function remove(id: number) {
             <td>{{ d.onlineStatus }}</td>
             <td class="mono">{{ d.lastHeartbeatTime || '—' }}</td>
             <td class="actions">
-              <button type="button" @click="toggle(d)">
-                {{ d.status === 'ON' ? '关灯' : '开灯' }}
+              <button
+                type="button"
+                :disabled="rowAction.isActive(d.id)"
+                @click="toggle(d)"
+              >
+                {{ rowAction.isActive(d.id) ? '…' : d.status === 'ON' ? '关灯' : '开灯' }}
               </button>
-              <button type="button" class="danger" @click="remove(d.id)">删除</button>
+              <button
+                type="button"
+                class="danger"
+                :disabled="rowAction.isActive(d.id)"
+                @click="remove(d.id)"
+              >
+                删除
+              </button>
             </td>
           </tr>
         </tbody>
@@ -138,6 +201,10 @@ button {
   color: #fff;
   border-color: var(--steel);
   cursor: pointer;
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 .ghost {
   background: #fff;

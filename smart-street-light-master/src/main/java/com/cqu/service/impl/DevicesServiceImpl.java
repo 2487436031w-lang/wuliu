@@ -58,7 +58,8 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
         wrapper.like(deviceName != null && !deviceName.isBlank(), Devices::getDeviceName, deviceName);
         wrapper.eq(status != null && !status.isBlank(), Devices::getStatus, status);
         wrapper.eq(onlineStatus != null && !onlineStatus.isBlank(), Devices::getOnlineStatus, onlineStatus);
-        wrapper.orderByDesc(Devices::getCreatedAt);
+        // 按 ID 稳定排序，避免开关刷新后一二号路灯位置对调
+        wrapper.orderByAsc(Devices::getId);
 
         Page<Devices> pageResult = this.page(new Page<>(page, pageSize), wrapper);
 

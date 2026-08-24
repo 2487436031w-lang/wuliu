@@ -1,45 +1,76 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 import { api } from '../api/client'
-import type { Device, LightReading, TrendPoint } from '../types/domain'
+import { useRealtimeStore } from '../stores/realtime'
+import type { Device, LightReading, ThresholdConfig, TrendPoint } from '../types/domain'
+import { todayRange } from '../utils/datetime'
+
+const realtime = useRealtimeStore()
 
 const devices = ref<Device[]>([])
-const deviceId = ref<number>(1)
+const deviceId = ref<number | null>(null)
 const records = ref<LightReading[]>([])
 const trend = ref<TrendPoint[]>([])
-
+const threshold = ref<ThresholdConfig | null>(null)
 const maxVal = computed(() => Math.max(1, ...trend.value.map((t) => t.value)))
 
 async function loadDevices() {
   const res = await api.listDevices({ page: 1, pageSize: 100 })
-  if (res.code === 200) {
-    devices.value = res.data.records
-    deviceId.value = devices.value[0]?.id ?? 1
+  if (res.code !== 200) return
+  devices.value = [...res.data.records].sort((a, b) => a.id - b.id)
+  if (!devices.value.length) {
+    deviceId.value = null
+    return
+  }
+  const ids = new Set(devices.value.map((d) => d.id))
+  if (deviceId.value === null || !ids.has(deviceId.value)) {
+    deviceId.value = devices.value[0].id
   }
 }
 
 async function load() {
-  const end = '2026-08-22 23:59:59'
-  const start = '2026-08-22 00:00:00'
+  if (deviceId.value === null) return
+  const id = deviceId.value
+  const { start, end } = todayRange()
   const [list, tr] = await Promise.all([
-    api.listLightReadings({ page: 1, pageSize: 20, deviceId: deviceId.value }),
-    api.lightTrend(deviceId.value, start, end),
+    api.listLightReadings({ page: 1, pageSize: 20, deviceId: id }),
+    api.lightTrend(id, start, end),
   ])
+  if (deviceId.value !== id) return
   if (list.code === 200) records.value = list.data.records
   if (tr.code === 200) trend.value = tr.data
 }
 
 onMounted(async () => {
+  const th = await api.getThreshold()
+  if (th.code === 200) threshold.value = th.data
   await loadDevices()
   await load()
 })
+
+watch(deviceId, () => {
+  void load()
+})
+
+watch(
+  () => realtime.latestLight,
+  () => {
+    void load()
+  },
+)
 </script>
 
 <template>
   <div class="page">
+    <RouterLink v-if="threshold" to="/threshold" class="threshold-banner">
+      自动开关灯：光照 &lt; <strong>{{ threshold.lightThresholdOn }}</strong> lux 开灯，
+      &gt; <strong>{{ threshold.lightThresholdOff }}</strong> lux 关灯 · 点击修改
+    </RouterLink>
+
     <label>
       设备
-      <select v-model.number="deviceId" @change="load">
+      <select v-model="deviceId" :disabled="!devices.length">
         <option v-for="d in devices" :key="d.id" :value="d.id">{{ d.deviceName }}</option>
       </select>
     </label>
@@ -83,6 +114,18 @@ onMounted(async () => {
 .page {
   display: grid;
   gap: 14px;
+}
+.threshold-banner {
+  padding: 12px 14px;
+  background: rgba(240, 162, 2, 0.12);
+  border: 1px solid rgba(240, 162, 2, 0.35);
+  border-radius: var(--radius);
+  font-size: 14px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.threshold-banner strong {
+  color: var(--sodium-deep);
 }
 label {
   display: grid;

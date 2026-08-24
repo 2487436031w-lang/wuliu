@@ -3,7 +3,7 @@ import { onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useRealtimeStore } from '../stores/realtime'
-import { isMockMode } from '../api/client'
+import { isMockMode } from '../config/runtime'
 
 const auth = useAuthStore()
 const realtime = useRealtimeStore()
@@ -15,7 +15,7 @@ const nav = [
   { to: '/devices', label: '设备' },
   { to: '/lights', label: '光照' },
   { to: '/alarms', label: '告警' },
-  { to: '/threshold', label: '阈值', admin: true },
+  { to: '/threshold', label: '阈值' },
   { to: '/logs', label: '控制日志' },
 ]
 
@@ -50,7 +50,10 @@ async function onLogout() {
           {{ auth.session?.username }}
           <strong>{{ auth.roleLabel }}</strong>
         </p>
-        <p class="mode mono">{{ isMockMode ? 'MOCK' : 'HTTP' }} · {{ realtime.connected ? 'LIVE' : 'OFF' }}</p>
+        <p class="mode mono">
+          {{ isMockMode ? 'MOCK 内存' : 'HTTP 后端' }} · {{ realtime.connected ? 'LIVE' : 'OFF' }}
+          <span v-if="!isMockMode" class="src">· PostgreSQL :8080</span>
+        </p>
         <button type="button" class="ghost" @click="onLogout">退出登录</button>
       </div>
     </aside>
@@ -143,6 +146,9 @@ async function onLogout() {
   margin: 0;
   font-size: 11px;
   opacity: 0.55;
+}
+.mode .src {
+  opacity: 0.85;
 }
 .ghost {
   border: 1px solid rgba(255, 255, 255, 0.22);

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { api } from '../api/client'
+import { isHttpMode, isMockToken } from '../config/runtime'
 import type { Role, UserSession } from '../types/domain'
 import { ROLE_LABEL } from '../types/domain'
 
@@ -39,7 +40,13 @@ export const useAuthStore = defineStore('auth', () => {
 function readSession(): UserSession | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as UserSession) : null
+    if (!raw) return null
+    const session = JSON.parse(raw) as UserSession
+    if (isHttpMode && isMockToken(session.token)) {
+      localStorage.removeItem(STORAGE_KEY)
+      return null
+    }
+    return session
   } catch {
     return null
   }

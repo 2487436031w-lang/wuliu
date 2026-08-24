@@ -1,51 +1,124 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
-import { api } from '../api/client'
+import { computed, onMounted, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
+import { api, isMockMode } from '../api/client'
 import { useRealtimeStore } from '../stores/realtime'
-import type { AlarmStatistics, DeviceStatistics } from '../types/domain'
+import type { AlarmStatistics, DeviceStatistics, ThresholdConfig } from '../types/domain'
 
 const realtime = useRealtimeStore()
 const stats = ref<DeviceStatistics | null>(null)
 const alarmStats = ref<AlarmStatistics | null>(null)
+const threshold = ref<ThresholdConfig | null>(null)
 
 async function load() {
-  const [d, a] = await Promise.all([api.deviceStatistics(), api.alarmStatistics()])
+  const [d, a, t] = await Promise.all([
+    api.deviceStatistics(),
+    api.alarmStatistics(),
+    api.getThreshold(),
+  ])
   if (d.code === 200) stats.value = d.data
   if (a.code === 200) alarmStats.value = a.data
+  if (t.code === 200) threshold.value = t.data
 }
 
 onMounted(load)
+
 watch(
-  () => realtime.latestLight?.createdAt,
+  () => [realtime.deviceSyncTick, realtime.alarmSyncTick],
   () => {
-    /* keep live intensity visible */
+    load()
   },
 )
+
+const tiles = computed(() => {
+  if (!stats.value) return []
+  return [
+    { label: '设备总数', value: stats.value.totalCount, to: '/devices' },
+    {
+      label: '在线',
+      value: stats.value.onlineCount,
+      to: '/devices',
+      query: { onlineStatus: 'ONLINE' },
+      tone: 'ok',
+    },
+    {
+      label: '离线',
+      value: stats.value.offlineCount,
+      to: '/devices',
+      query: { onlineStatus: 'OFFLINE' },
+    },
+    {
+      label: '已开灯',
+      value: stats.value.onCount,
+      to: '/devices',
+      query: { status: 'ON' },
+      tone: 'on',
+    },
+    {
+      label: '已关灯',
+      value: stats.value.offCount,
+      to: '/devices',
+      query: { status: 'OFF' },
+    },
+  ]
+})
+
+const alarmTile = computed(() => ({
+  label: '待处理告警',
+  value: alarmStats.value?.activeCount ?? 0,
+}))
 </script>
 
 <template>
   <div class="page">
-    <section class="hero-strip">
+    <RouterLink to="/lights" class="hero-strip link-card">
       <div>
-        <p class="label">实时光照（Mock / WS）</p>
+        <p class="label">实时光照 · 点击查看趋势</p>
         <p class="big mono">
           {{ realtime.latestLight ? realtime.latestLight.lightIntensity.toFixed(1) : '—' }}
           <span>lux</span>
         </p>
+        <p class="mode mono">{{ isMockMode ? 'Mock 定时模拟' : '后端 WebSocket' }}</p>
+        <p v-if="!isMockMode" class="hint-sub">
+          设备名含「人民路」等为数据库测试数据；板子实时数据需 MQTT 上报（STREETLIGHT 固件）。
+        </p>
       </div>
-      <p class="hint">低于开灯阈值自动开灯；高于关灯阈值自动关灯（后端判定）。</p>
-    </section>
+      <p class="hint">
+        开灯 &lt; {{ threshold?.lightThresholdOn ?? '—' }} lux ·
+        关灯 &gt; {{ threshold?.lightThresholdOff ?? '—' }} lux
+        <RouterLink to="/threshold" class="threshold-link">修改阈值</RouterLink>
+      </p>
+    </RouterLink>
+
+    <RouterLink v-if="threshold" to="/threshold" class="threshold-strip link-card">
+      <div>
+        <p class="label">开关灯阈值</p>
+        <p class="threshold-values mono">
+          低于 <strong>{{ threshold.lightThresholdOn }}</strong> lux 自动开灯 ·
+          高于 <strong>{{ threshold.lightThresholdOff }}</strong> lux 自动关灯
+        </p>
+      </div>
+      <span class="edit">去设置 →</span>
+    </RouterLink>
 
     <div class="grid" v-if="stats">
-      <article><p>设备总数</p><strong>{{ stats.totalCount }}</strong></article>
-      <article><p>在线</p><strong class="ok">{{ stats.onlineCount }}</strong></article>
-      <article><p>离线</p><strong>{{ stats.offlineCount }}</strong></article>
-      <article><p>已开灯</p><strong class="on">{{ stats.onCount }}</strong></article>
-      <article><p>已关灯</p><strong>{{ stats.offCount }}</strong></article>
-      <article>
-        <p>活跃告警</p>
-        <strong class="bad">{{ alarmStats?.activeCount ?? 0 }}</strong>
-      </article>
+      <RouterLink
+        v-for="tile in tiles"
+        :key="tile.label"
+        :to="{ path: tile.to, query: tile.query }"
+        class="stat link-card"
+      >
+        <p>{{ tile.label }}</p>
+        <strong :class="tile.tone">{{ tile.value }}</strong>
+      </RouterLink>
+
+      <RouterLink
+        :to="{ path: '/alarms', query: { status: 'ACTIVE' } }"
+        class="stat link-card"
+      >
+        <p>{{ alarmTile.label }}</p>
+        <strong class="bad">{{ alarmTile.value }}</strong>
+      </RouterLink>
     </div>
   </div>
 </template>
@@ -54,6 +127,18 @@ watch(
 .page {
   display: grid;
   gap: 16px;
+}
+.link-card {
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.link-card:hover {
+  border-color: var(--sodium);
+  box-shadow: var(--shadow);
+}
+.link-card:active {
+  transform: translateY(1px);
 }
 .hero-strip {
   display: flex;
@@ -65,6 +150,7 @@ watch(
   color: #f2f4f7;
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+  border: 1px solid transparent;
 }
 .label {
   margin: 0;
@@ -72,6 +158,18 @@ watch(
   letter-spacing: 0.1em;
   text-transform: uppercase;
   opacity: 0.65;
+}
+.mode {
+  margin: 8px 0 0;
+  font-size: 11px;
+  opacity: 0.45;
+}
+.hint-sub {
+  margin: 6px 0 0;
+  font-size: 12px;
+  opacity: 0.55;
+  max-width: 36ch;
+  line-height: 1.4;
 }
 .big {
   margin: 6px 0 0;
@@ -92,23 +190,52 @@ watch(
   opacity: 0.75;
   line-height: 1.45;
 }
+.threshold-link {
+  display: inline-block;
+  margin-top: 6px;
+  color: var(--sodium);
+  text-decoration: underline;
+}
+.threshold-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.threshold-values {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+.threshold-values strong {
+  color: var(--sodium-deep);
+}
+.edit {
+  font-size: 13px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
 .grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
 }
-article {
+.stat {
   background: var(--panel);
   border: 1px solid var(--line);
   padding: 16px;
   border-radius: var(--radius);
+  display: block;
 }
-article p {
+.stat p {
   margin: 0;
   color: var(--ink-soft);
   font-size: 13px;
 }
-article strong {
+.stat strong {
   display: block;
   margin-top: 8px;
   font-family: var(--font-display);
