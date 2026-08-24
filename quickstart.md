@@ -145,6 +145,11 @@ powershell -ExecutionPolicy Bypass -File scripts\mqtt-simulate.ps1 -DeviceSn SN-
 
 | 文档 | 用途 |
 |------|------|
+| [docs/defense/TECH-STACK-AND-DESIGN.md](docs/defense/TECH-STACK-AND-DESIGN.md) | **答辩：技术栈 + 核心设计 + 演示/问答** |
+| [docs/defense/SLIDES-OUTLINE.md](docs/defense/SLIDES-OUTLINE.md) | PPT 逐页提纲 |
+| [docs/defense/ROADMAP-AND-AGENT.md](docs/defense/ROADMAP-AND-AGENT.md) | 迭代 / 创新 / Agent |
+| [docs/defense/ARCHITECTURE-MAP.md](docs/defense/ARCHITECTURE-MAP.md) | 60 秒架构速览 |
+| [docs/sprint/README.md](docs/sprint/README.md) | **工程组 / Agent 组分工与详细做法** |
 | [README.md](README.md) | 仓库入口 |
 | [docs/collab/TEAM-ONBOARDING.md](docs/collab/TEAM-ONBOARDING.md) | 配置分工（共享 vs 本机） |
 | [smart-street-light-master/LOCAL-RUN.md](smart-street-light-master/LOCAL-RUN.md) | Docker / jar 细节 |

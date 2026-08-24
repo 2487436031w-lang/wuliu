@@ -9,10 +9,14 @@ Thumbs.db
 # BearPi/OpenHarmony 源码（体积巨大，本地在 D:\ohos\bearpi-hm_nano）
 firmware/bearpi-hm_nano/
 
-# Cursor IDE 本地配置（skills/agents 为个人环境，不入库）
-.cursor/skills/
+# Cursor IDE 本地配置（skills/agents 默认不入库；答辩相关 skill 显式跟踪）
 .cursor/agents/
 .cursor/projects/
+.cursor/skills/*
+!.cursor/skills/streetlight-defense-brief/
+!.cursor/skills/streetlight-defense-brief/**
+!.cursor/skills/iot-project-design-defense/
+!.cursor/skills/iot-project-design-defense/**
 
 # --- Java / Maven ---
 **/target/

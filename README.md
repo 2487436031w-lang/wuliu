@@ -25,7 +25,7 @@ npm run dev
 - EMQX 控制台：http://localhost:18083 （`admin` / `public`）
 
 **完整说明（配置分工、板端、避免重复踩坑）：**  
-[`docs/collab/TEAM-ONBOARDING.md`](docs/collab/TEAM-ONBOARDING.md) · [`quickstart.md`](quickstart.md)
+[`docs/collab/TEAM-ONBOARDING.md`](docs/collab/TEAM-ONBOARDING.md) · [`quickstart.md`](quickstart.md) · [`docs/sprint/README.md`](docs/sprint/README.md)（分工） · [`docs/defense/TECH-STACK-AND-DESIGN.md`](docs/defense/TECH-STACK-AND-DESIGN.md)（答辩）
 
 ## 目录
 
@@ -37,6 +37,8 @@ npm run dev
 | `firmware/scripts/` | 同步/启用 sample、一键硬件准备 |
 | `docs/hardware/` | BearPi 规划与 [HARDWARE-E2E](docs/hardware/HARDWARE-E2E.md) |
 | `docs/collab/` | 协作与联调说明 |
+| `docs/sprint/` | **下一迭代**：工程组 / Agent 组分工与详细做法 |
+| `docs/defense/` | **答辩**：技术栈、PPT 提纲、迭代/Agent、架构速览 |
 
 BearPi 完整 SDK **不在本仓**，默认放在 `D:\ohos\bearpi-hm_nano`（见 [`firmware/README.md`](firmware/README.md)）。
 
