@@ -24,6 +24,8 @@
 
 | 文档 | 路径 |
 |------|------|
+| **组员上手（少重复配置）** | [TEAM-ONBOARDING.md](TEAM-ONBOARDING.md) |
+| 端到端变更说明 | [发件箱/2026-08-23-端到端联调-变更说明.md](发件箱/2026-08-23-端到端联调-变更说明.md) |
 | 联调清单 | [发件箱/2026-08-22-联调清单-全员.md](发件箱/2026-08-22-联调清单-全员.md) |
 | 对齐审计 | [../contracts/fe-be-alignment-audit.md](../contracts/fe-be-alignment-audit.md) |
 | 契约目录 | [../contracts/README.md](../contracts/README.md) |
