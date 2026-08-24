@@ -5,10 +5,10 @@
 ## 快速开始
 
 ```powershell
-cd wuliu-main
+cd wuliu
 powershell -ExecutionPolicy Bypass -File firmware\scripts\setup-hardware-e2e.ps1 `
-  -WifiSsid "你的WiFi名称" `
-  -WifiPsk "你的WiFi密码" `
+  -WifiSsid "实验室2.4G_WiFi" `
+  -WifiPsk "班群告知的密码" `
   -DeviceSn "SN-RM-001"
 ```
 

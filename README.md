@@ -7,8 +7,8 @@ BearPi 上报光照 → EMQX MQTT → Spring Boot → WebSocket → Vue 控制�
 先看 **[quickstart.md](quickstart.md)**（规矩 + 常用命令）。
 
 ```powershell
-git clone <本仓地址>
-cd wuliu   # 目录名以实际为准
+git clone https://github.com/xikunn/wuliu.git
+cd wuliu
 powershell -ExecutionPolicy Bypass -File scripts\team-bootstrap.ps1
 ```
 
