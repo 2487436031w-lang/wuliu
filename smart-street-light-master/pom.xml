@@ -80,7 +80,7 @@
             <version>5.8.40</version>
         </dependency>
 
-        <!--jjwt-->
+        <!--jjwt（impl/jackson 必须 runtime，且需打进 Spring Boot fat jar）-->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
@@ -90,11 +90,13 @@
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-impl</artifactId>
             <version>0.11.5</version>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-jackson</artifactId>
             <version>0.11.5</version>
+            <scope>runtime</scope>
         </dependency>
     </dependencies>
 

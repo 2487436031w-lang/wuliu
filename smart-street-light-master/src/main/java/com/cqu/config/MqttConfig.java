@@ -152,28 +152,31 @@ public class MqttConfig {
     /**
      * 向指定设备下发开关指令
      *
-     * @param deviceSn 设备序列号
-     * @param command  指令：AUTO_ON / AUTO_OFF / MANUAL_ON / MANUAL_OFF
+     * @return 是否已成功 publish（MQTT 已连接且未抛异常）
      */
-    public void publishCommand(String deviceSn, String command) {
+    public boolean publishCommand(String deviceSn, String command) {
         if (deviceSn == null) {
             log.warn("下发指令失败: deviceSn 为 null");
-            return;
+            return false;
         }
         String topic = String.format(COMMAND_TOPIC_TPL, deviceSn);
         Map<String, String> payload = new LinkedHashMap<>();
         payload.put("command", command);
         payload.put("timestamp", LocalDateTime.now().format(FORMATTER));
-        publish(topic, payload, 1);
+        return publish(topic, payload, 1);
+    }
+
+    public boolean isBrokerConnected() {
+        return mqttClient != null && mqttClient.isConnected();
     }
 
     /**
      * 底层 publish
      */
-    private void publish(String topic, Object payload, int qos) {
+    private boolean publish(String topic, Object payload, int qos) {
         if (mqttClient == null || !mqttClient.isConnected()) {
             log.warn("MQTT 未连接，丢弃消息: topic={}", topic);
-            return;
+            return false;
         }
         try {
             String json = OBJECT_MAPPER.writeValueAsString(payload);
@@ -181,8 +184,10 @@ public class MqttConfig {
             msg.setQos(qos);
             mqttClient.publish(topic, msg);
             log.info("MQTT 下发: topic={}, payload={}", topic, json);
+            return true;
         } catch (Exception e) {
             log.error("MQTT publish 失败: topic={}", topic, e);
+            return false;
         }
     }
 

@@ -45,6 +45,16 @@ public class Devices implements Serializable {
      */
     private String onlineStatus;
 
+    /**
+     * 控制模式: AUTO-跟随阈值自动开关, MANUAL-手动锁定（忽略 AUTO）
+     */
+    private String controlMode;
+
+    /**
+     * 编组名称：同名设备为一组；null/空表示未分组
+     */
+    private String groupName;
+
     private LocalDateTime lastHeartbeatTime;
 
     private LocalDateTime createdAt;

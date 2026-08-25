@@ -7,6 +7,7 @@ import { router } from './router'
 import { runBootstrap } from './bootstrap'
 import { apiMode } from './config/runtime'
 import './styles/tokens.css'
+import './styles/components.css'
 
 runBootstrap()
 if (import.meta.env.DEV) {

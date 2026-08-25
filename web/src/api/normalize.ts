@@ -5,10 +5,12 @@ import type {
   Device,
   DeviceDetail,
   DeviceStatistics,
+  EffectiveThreshold,
   LatestLight,
   LightReading,
   PageResult,
   ThresholdConfig,
+  ThresholdOverride,
 } from '../types/domain'
 
 function asNumber(v: unknown): number {
@@ -41,6 +43,11 @@ export function normalizeDevice(raw: Record<string, unknown>): Device {
     deviceSn: String(raw.deviceSn ?? ''),
     status: raw.status as Device['status'],
     onlineStatus: raw.onlineStatus as Device['onlineStatus'],
+    controlMode: (raw.controlMode as Device['controlMode']) || 'AUTO',
+    groupName: (() => {
+      const g = raw.groupName == null ? '' : String(raw.groupName).trim()
+      return g || null
+    })(),
     lastHeartbeatTime: (raw.lastHeartbeatTime as string | null) ?? null,
     createdAt: String(raw.createdAt ?? ''),
   }
@@ -87,6 +94,8 @@ export function normalizeControlLog(raw: Record<string, unknown>): ControlLog {
     command: String(raw.command ?? ''),
     source: String(raw.source ?? ''),
     result: String(raw.result ?? ''),
+    executionStatus: String(raw.executionStatus ?? 'SUCCESS'),
+    expectedStatus: (raw.expectedStatus as string | null) ?? null,
     createdAt: String(raw.createdAt ?? ''),
   }
 }
@@ -119,6 +128,27 @@ export function normalizeThreshold(raw: Record<string, unknown>): ThresholdConfi
     lightThresholdOff: Number(raw.lightThresholdOff),
     heartbeatTimeout: asNumber(raw.heartbeatTimeout),
     updatedAt: String(raw.updatedAt ?? ''),
+  }
+}
+
+export function normalizeThresholdOverride(raw: Record<string, unknown>): ThresholdOverride {
+  return {
+    id: String(raw.id ?? ''),
+    scopeType: String(raw.scopeType ?? ''),
+    scopeKey: String(raw.scopeKey ?? ''),
+    scopeLabel: String(raw.scopeLabel ?? raw.scopeKey ?? ''),
+    lightThresholdOn: Number(raw.lightThresholdOn),
+    lightThresholdOff: Number(raw.lightThresholdOff),
+    updatedAt: String(raw.updatedAt ?? ''),
+  }
+}
+
+export function normalizeEffectiveThreshold(raw: Record<string, unknown>): EffectiveThreshold {
+  return {
+    lightThresholdOn: Number(raw.lightThresholdOn),
+    lightThresholdOff: Number(raw.lightThresholdOff),
+    source: String(raw.source ?? 'GLOBAL'),
+    sourceKey: raw.sourceKey == null ? null : String(raw.sourceKey),
   }
 }
 

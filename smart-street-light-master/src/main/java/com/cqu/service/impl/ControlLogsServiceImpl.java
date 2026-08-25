@@ -2,6 +2,7 @@ package com.cqu.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cqu.constant.StreetLightConstants;
 import com.cqu.entity.ControlLogs;
 import com.cqu.entity.Devices;
 import com.cqu.entity.Users;
@@ -38,16 +39,17 @@ public class ControlLogsServiceImpl extends ServiceImpl<ControlLogsMapper, Contr
     private UsersMapper usersMapper;
 
     @Override
-    public PageResult<ControlLogVO> pageLogs(int page, int pageSize, Long deviceId, String command, Long operatorId) {
+    public PageResult<ControlLogVO> pageLogs(int page, int pageSize, Long deviceId, String command,
+                                             Long operatorId, String source) {
         LambdaQueryWrapper<ControlLogs> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(deviceId != null, ControlLogs::getDeviceId, deviceId);
         wrapper.eq(command != null && !command.isBlank(), ControlLogs::getCommand, command);
         wrapper.eq(operatorId != null, ControlLogs::getOperatorId, operatorId);
+        wrapper.eq(source != null && !source.isBlank(), ControlLogs::getSource, source);
         wrapper.orderByDesc(ControlLogs::getCreatedAt);
 
         Page<ControlLogs> pageResult = this.page(new Page<>(page, pageSize), wrapper);
 
-        // 批量获取设备名称和操作人名称
         Map<Long, String> deviceNameMap = buildDeviceNameMap(pageResult.getRecords());
         Map<Long, String> operatorNameMap = buildOperatorNameMap(pageResult.getRecords());
 
@@ -97,7 +99,62 @@ public class ControlLogsServiceImpl extends ServiceImpl<ControlLogsMapper, Contr
         log.setCommand(command);
         log.setSource(source);
         log.setResult(result);
+        log.setExecutionStatus(StreetLightConstants.EXEC_SUCCESS);
         this.save(log);
+    }
+
+    @Override
+    public Long recordPendingCommand(Long deviceId, String command, String source, String expectedStatus) {
+        supersedePendingCommands(deviceId);
+        ControlLogs log = new ControlLogs();
+        log.setDeviceId(deviceId);
+        log.setOperatorId(UserHolder.getCurrent());
+        log.setCommand(command);
+        log.setSource(source);
+        log.setExpectedStatus(expectedStatus);
+        log.setResult(StreetLightConstants.EXEC_PENDING);
+        log.setExecutionStatus(StreetLightConstants.EXEC_PENDING);
+        this.save(log);
+        return log.getId();
+    }
+
+    @Override
+    public void supersedePendingCommands(Long deviceId) {
+        if (deviceId == null) {
+            return;
+        }
+        List<ControlLogs> stale = this.lambdaQuery()
+                .eq(ControlLogs::getDeviceId, deviceId)
+                .eq(ControlLogs::getExecutionStatus, StreetLightConstants.EXEC_PENDING)
+                .list();
+        for (ControlLogs log : stale) {
+            log.setExecutionStatus(StreetLightConstants.EXEC_SUCCESS);
+            log.setResult("SUPERSEDED");
+            this.updateById(log);
+        }
+    }
+
+    @Override
+    public void confirmPendingByStatus(Long deviceId, String status) {
+        if (deviceId == null || status == null || status.isBlank()) {
+            return;
+        }
+
+        ControlLogs pending = this.lambdaQuery()
+                .eq(ControlLogs::getDeviceId, deviceId)
+                .eq(ControlLogs::getExecutionStatus, StreetLightConstants.EXEC_PENDING)
+                .eq(ControlLogs::getExpectedStatus, status)
+                .orderByDesc(ControlLogs::getCreatedAt)
+                .last("LIMIT 1")
+                .one();
+
+        if (pending == null) {
+            return;
+        }
+
+        pending.setExecutionStatus(StreetLightConstants.EXEC_SUCCESS);
+        pending.setResult(StreetLightConstants.EXEC_SUCCESS);
+        this.updateById(pending);
     }
 
     private Map<Long, String> buildDeviceNameMap(List<ControlLogs> logs) {
@@ -135,11 +192,13 @@ public class ControlLogsServiceImpl extends ServiceImpl<ControlLogsMapper, Contr
                 .id(String.valueOf(log.getId()))
                 .deviceId(String.valueOf(log.getDeviceId()))
                 .deviceName(deviceName)
-                .operatorId(String.valueOf(log.getOperatorId()))
+                .operatorId(log.getOperatorId() != null ? String.valueOf(log.getOperatorId()) : null)
                 .operatorName(operatorName)
                 .command(log.getCommand())
                 .source(log.getSource())
                 .result(log.getResult())
+                .executionStatus(log.getExecutionStatus())
+                .expectedStatus(log.getExpectedStatus())
                 .createdAt(log.getCreatedAt())
                 .build();
     }

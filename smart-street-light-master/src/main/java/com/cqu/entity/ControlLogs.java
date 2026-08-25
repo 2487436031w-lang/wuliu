@@ -41,6 +41,16 @@ public class ControlLogs implements Serializable {
 
     private String result;
 
+    /**
+     * 指令执行状态: PENDING | SUCCESS | TIMEOUT
+     */
+    private String executionStatus;
+
+    /**
+     * 期望板端回传 status: ON | OFF
+     */
+    private String expectedStatus;
+
     private LocalDateTime createdAt;
 
 

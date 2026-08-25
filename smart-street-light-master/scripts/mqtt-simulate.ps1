@@ -1,7 +1,8 @@
-# MQTT 闭环模拟 — 无需 BearPi，用 mosquitto 客户端向 EMQX 发光照/状态
+# MQTT 单次模拟 — 向 EMQX 发一条光照 + status
 # 用法：
 #   powershell -ExecutionPolicy Bypass -File scripts\mqtt-simulate.ps1
-#   powershell -ExecutionPolicy Bypass -File scripts\mqtt-simulate.ps1 -DeviceSn SN-RM-001 -Intensity 25
+#   powershell -ExecutionPolicy Bypass -File scripts\mqtt-simulate.ps1 -DeviceSn SN-RM-002 -Intensity 25
+# 持续多设备见: mqtt-simulate-fleet.ps1
 
 param(
     [string]$DeviceSn = "SN-RM-001",
@@ -12,34 +13,28 @@ param(
 
 $ErrorActionPreference = "Stop"
 $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+$status = if ($Intensity -lt 30) { "ON" } elseif ($Intensity -gt 80) { "OFF" } else { "ON" }
 
 $lightPayload = (@{
-    deviceSn        = $DeviceSn
-    lightIntensity  = $Intensity
-    timestamp       = $ts
+    deviceSn       = $DeviceSn
+    lightIntensity = $Intensity
+    timestamp      = $ts
 } | ConvertTo-Json -Compress)
 
 $statusPayload = (@{
     deviceSn  = $DeviceSn
-    status    = if ($Intensity -lt 30) { "ON" } else { "OFF" }
+    status    = $status
     timestamp = $ts
 } | ConvertTo-Json -Compress)
 
-$dockerNet = @("--network", "container:$EmqxContainer")
-$brokerHost = "127.0.0.1"
-
 function Publish-Mqtt([string]$Topic, [string]$Payload) {
-    # PowerShell 单引号包住 sh -c，Linux 再展开 $MQTT_PAYLOAD，避免空格/引号被拆
     $env:MQTT_PAYLOAD = $Payload
     docker run --rm --network "container:$EmqxContainer" -e MQTT_PAYLOAD eclipse-mosquitto:2 `
         sh -c 'mosquitto_pub -h 127.0.0.1 -p 1883 -t '"$Topic"' -m "$MQTT_PAYLOAD"'
 }
 
-Write-Host ""
-Write-Host "验收："
-Write-Host "  1. 后端日志出现 MQTT 收到消息"
-Write-Host "  2. 灯廊 Dashboard 实时光照更新、统计卡片刷新"
-Write-Host "  3. 光照 < 30 时应触发 AUTO_ON（控制日志可查）"
-Write-Host ""
-Write-Host "订阅 command（另开终端）："
-Write-Host "  docker run -it --rm --network container:$EmqxContainer eclipse-mosquitto:2 mosquitto_sub -h 127.0.0.1 -p $BrokerPort -t smart-light/$DeviceSn/command -v"
+Write-Host "Publish light  smart-light/$DeviceSn/light  lux=$Intensity"
+Publish-Mqtt "smart-light/$DeviceSn/light" $lightPayload
+Write-Host "Publish status smart-light/$DeviceSn/status status=$status"
+Publish-Mqtt "smart-light/$DeviceSn/status" $statusPayload
+Write-Host "Done. Continuous fleet: scripts\mqtt-simulate-fleet.ps1"

@@ -21,6 +21,14 @@ public class DeviceVO {
     private String deviceSn;
     private String status;
     private String onlineStatus;
+    /** AUTO | MANUAL */
+    private String controlMode;
+    /** 编组名称，空=未分组 */
+    private String groupName;
+    /** 最近一次成功指令的期望 status（ON/OFF）；无则 null */
+    private String expectedStatus;
+    /** 期望与实际 status 是否一致；无期望时视为一致 */
+    private Boolean statusMatch;
     private LocalDateTime lastHeartbeatTime;
     private LocalDateTime createdAt;
 }

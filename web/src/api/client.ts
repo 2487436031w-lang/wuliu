@@ -11,6 +11,8 @@ import {
   normalizeLightReading,
   normalizePage,
   normalizeThreshold,
+  normalizeThresholdOverride,
+  normalizeEffectiveThreshold,
 } from './normalize'
 import { createMockApi } from './mock'
 import type { StreetLightApi } from './types'
@@ -112,12 +114,32 @@ function createHttpApi(): StreetLightApi {
     deviceStatistics: () => httpData('/devices/statistics', {}, normalizeDeviceStatistics),
     switchDevice: (id, status) =>
       http(`/devices/${Number(id)}/switch`, { method: 'POST', body: JSON.stringify({ status }) }),
+    setControlMode: (id, mode) =>
+      http(`/devices/${Number(id)}/control-mode`, {
+        method: 'PUT',
+        body: JSON.stringify({ mode }),
+      }),
+    setDeviceGroup: (id, groupName) =>
+      http(`/devices/${Number(id)}/group`, {
+        method: 'PUT',
+        body: JSON.stringify({ groupName }),
+      }),
+    switchGroup: (groupName, status) =>
+      http('/devices/group-switch', {
+        method: 'POST',
+        body: JSON.stringify({ groupName, status }),
+      }),
+    setGroupControlMode: (groupName, mode) =>
+      http('/devices/group-control-mode', {
+        method: 'PUT',
+        body: JSON.stringify({ groupName, mode }),
+      }),
     listLightReadings: (params) =>
       httpPage('/light-readings' + q({ page: 1, pageSize: 10, ...params }), {}, normalizeLightReading),
     latestLight: (deviceId) =>
       httpData(`/light-readings/latest/${Number(deviceId)}`, {}, normalizeLatestLight),
-    lightTrend: (deviceId, startTime, endTime) =>
-      http(`/light-readings/trend${q({ deviceId: Number(deviceId), startTime, endTime })}`),
+    lightTrend: (params) =>
+      http(`/light-readings/trend${q(params)}`),
     listAlarms: (params) =>
       httpPage('/alarm-logs' + q({ page: 1, pageSize: 10, ...params }), {}, normalizeAlarm),
     resolveAlarm: (id) =>
@@ -126,6 +148,24 @@ function createHttpApi(): StreetLightApi {
     getThreshold: () => httpData('/threshold-config', {}, normalizeThreshold),
     updateThreshold: (body) =>
       http('/threshold-config', { method: 'PUT', body: JSON.stringify(body) }),
+    listThresholdOverrides: async () => {
+      const body = await http<Record<string, unknown>[]>('/threshold-config/overrides')
+      if (body.code === 200 && Array.isArray(body.data)) {
+        return {
+          ...body,
+          data: body.data.map((row) => normalizeThresholdOverride(row as Record<string, unknown>)),
+        }
+      }
+      return body as unknown as import('../types/domain').ApiResult<
+        import('../types/domain').ThresholdOverride[]
+      >
+    },
+    upsertThresholdOverride: (body) =>
+      http('/threshold-config/overrides', { method: 'PUT', body: JSON.stringify(body) }),
+    deleteThresholdOverride: (scopeType, scopeKey) =>
+      http(`/threshold-config/overrides${q({ scopeType, scopeKey })}`, { method: 'DELETE' }),
+    getEffectiveThreshold: (deviceId) =>
+      httpData(`/threshold-config/effective/${Number(deviceId)}`, {}, normalizeEffectiveThreshold),
     listControlLogs: (params) =>
       httpPage('/control-logs' + q({ page: 1, pageSize: 10, ...params }), {}, normalizeControlLog),
   }

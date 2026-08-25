@@ -24,5 +24,7 @@ public class ControlLogVO {
     private String command;
     private String source;
     private String result;
+    private String executionStatus;
+    private String expectedStatus;
     private LocalDateTime createdAt;
 }

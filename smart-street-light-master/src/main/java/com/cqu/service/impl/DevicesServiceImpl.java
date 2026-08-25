@@ -3,9 +3,11 @@ package com.cqu.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cqu.entity.AlarmLogs;
+import com.cqu.entity.ControlLogs;
 import com.cqu.entity.Devices;
 import com.cqu.entity.LightReadings;
 import com.cqu.mapper.AlarmLogsMapper;
+import com.cqu.mapper.ControlLogsMapper;
 import com.cqu.mapper.DevicesMapper;
 import com.cqu.mapper.LightReadingsMapper;
 import com.cqu.config.MqttConfig;
@@ -42,6 +44,9 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
 
     @Autowired
     private AlarmLogsMapper alarmLogsMapper;
+
+    @Autowired
+    private ControlLogsMapper controlLogsMapper;
 
     @Autowired
     private IControlLogsService controlLogsService;
@@ -90,12 +95,17 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
                 .eq(AlarmLogs::getStatus, "ACTIVE");
         Long activeAlarmCount = alarmLogsMapper.selectCount(alarmWrapper);
 
+        String expected = resolveExpectedStatus(device.getId());
         return DeviceDetailVO.builder()
                 .id(String.valueOf(device.getId()))
                 .deviceName(device.getDeviceName())
                 .deviceSn(device.getDeviceSn())
                 .status(device.getStatus())
                 .onlineStatus(device.getOnlineStatus())
+                .controlMode(resolveControlMode(device.getControlMode()))
+                .groupName(normalizeGroupName(device.getGroupName()))
+                .expectedStatus(expected)
+                .statusMatch(isStatusMatch(device.getStatus(), expected))
                 .lastHeartbeatTime(device.getLastHeartbeatTime())
                 .latestLightIntensity(latestLight != null ? latestLight.getLightIntensity() : null)
                 .activeAlarmCount(String.valueOf(activeAlarmCount))
@@ -122,6 +132,7 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
         Devices device = new Devices();
         device.setDeviceName(deviceName);
         device.setDeviceSn(deviceSn);
+        device.setControlMode("AUTO");
         this.save(device);
         controlLogsService.recordLog(device.getId(), "ADD_DEVICE", "SUCCESS");
     }
@@ -198,8 +209,8 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
         device.setStatus(status);
         this.updateById(device);
 
-        // 记录控制日志（硬件回传，来源为 AUTO）
-        controlLogsService.recordLog(deviceId, "STATUS_CALLBACK", "SUCCESS", "AUTO");
+        // 匹配最近一条 PENDING 指令并标记 SUCCESS
+        controlLogsService.confirmPendingByStatus(deviceId, status);
 
         // WebSocket 推送设备状态变更
         Map<String, Object> data = new LinkedHashMap<>();
@@ -268,11 +279,9 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
 
         String oldStatus = device.getStatus();
         device.setStatus(status);
+        // 手动操作进入 MANUAL：后续光照上报不再触发 AUTO_ON / AUTO_OFF
+        device.setControlMode("MANUAL");
         this.updateById(device);
-
-        // 记录控制日志（手动控制）
-        String command = "MANUAL_" + status;
-        controlLogsService.recordLog(deviceId, command, "SUCCESS", "MANUAL");
 
         // WebSocket 推送设备状态变更
         Map<String, Object> data = new LinkedHashMap<>();
@@ -280,29 +289,182 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
         data.put("deviceName", device.getDeviceName());
         data.put("oldStatus", oldStatus);
         data.put("status", status);
+        data.put("controlMode", "MANUAL");
         WebSocketMessage msg = WebSocketMessage.builder()
                 .type("DEVICE_STATUS_CHANGED")
                 .timestamp(LocalDateTime.now())
                 .data(data)
                 .build();
-        log.info("WebSocket 推送 → /topic/device-status: 设备 {} ({}) 手动开关 {} → {}", deviceId, device.getDeviceName(), oldStatus, status);
+        log.info("WebSocket 推送 → /topic/device-status: 设备 {} ({}) 手动开关 {} → {}（进入 MANUAL）",
+                deviceId, device.getDeviceName(), oldStatus, status);
         messagingTemplate.convertAndSend("/topic/device-status", msg);
 
-        // 通过 MQTT 下发开关指令给硬件
-        mqttConfig.publishCommand(device.getDeviceSn(), command);
+        // 先下发 MQTT，成功后再记 PENDING（避免 Broker 未连时误报 30s 超时）
+        String command = "MANUAL_" + status;
+        boolean published = mqttConfig.publishCommand(device.getDeviceSn(), command);
+        if (!published) {
+            throw new RuntimeException("MQTT 未连接，指令未下发到板端，请检查 EMQX 与后端 MQTT 配置");
+        }
+        controlLogsService.recordPendingCommand(deviceId, command, "MANUAL", status);
 
         return command;
     }
 
+    @Override
+    public void setControlMode(Long deviceId, String mode) {
+        if (deviceId == null || mode == null || mode.isBlank()) {
+            throw new RuntimeException("设备ID和模式不能为空");
+        }
+        if (!"AUTO".equals(mode) && !"MANUAL".equals(mode)) {
+            throw new RuntimeException("模式只能为 AUTO 或 MANUAL");
+        }
+
+        Devices device = this.getById(deviceId);
+        if (device == null) {
+            throw new RuntimeException("设备不存在");
+        }
+
+        String oldMode = resolveControlMode(device.getControlMode());
+        device.setControlMode(mode);
+        this.updateById(device);
+
+        controlLogsService.recordLog(deviceId, "MODE_" + mode, "SUCCESS", "MANUAL");
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("deviceId", deviceId);
+        data.put("deviceName", device.getDeviceName());
+        data.put("oldControlMode", oldMode);
+        data.put("controlMode", mode);
+        data.put("status", device.getStatus());
+        WebSocketMessage msg = WebSocketMessage.builder()
+                .type("DEVICE_CONTROL_MODE_CHANGED")
+                .timestamp(LocalDateTime.now())
+                .data(data)
+                .build();
+        log.info("设备 {} ({}) 控制模式 {} → {}", deviceId, device.getDeviceName(), oldMode, mode);
+        messagingTemplate.convertAndSend("/topic/device-status", msg);
+    }
+
+    @Override
+    public void setDeviceGroup(Long deviceId, String groupName) {
+        if (deviceId == null) {
+            throw new RuntimeException("设备ID不能为空");
+        }
+        Devices device = this.getById(deviceId);
+        if (device == null) {
+            throw new RuntimeException("设备不存在");
+        }
+        String normalized = normalizeGroupName(groupName);
+        this.lambdaUpdate()
+                .eq(Devices::getId, deviceId)
+                .set(Devices::getGroupName, normalized)
+                .update();
+        controlLogsService.recordLog(deviceId,
+                normalized == null ? "UNGROUP" : "GROUP_" + normalized,
+                "SUCCESS", "MANUAL");
+        log.info("设备 {} ({}) 编组 → {}", deviceId, device.getDeviceName(),
+                normalized == null ? "（未分组）" : normalized);
+    }
+
+    @Override
+    public int switchGroup(String groupName, String status) {
+        String normalized = requireGroupName(groupName);
+        if (status == null || status.isBlank() || (!status.equals("ON") && !status.equals("OFF"))) {
+            throw new RuntimeException("开关状态必须为 ON 或 OFF");
+        }
+        List<Devices> members = listByGroup(normalized);
+        if (members.isEmpty()) {
+            throw new RuntimeException("编组不存在或组内无设备: " + normalized);
+        }
+        int ok = 0;
+        for (Devices d : members) {
+            switchDevice(d.getId(), status);
+            ok++;
+        }
+        log.info("编组「{}」统一开关 → {}，共 {} 台", normalized, status, ok);
+        return ok;
+    }
+
+    @Override
+    public int setGroupControlMode(String groupName, String mode) {
+        String normalized = requireGroupName(groupName);
+        if (mode == null || mode.isBlank() || (!mode.equals("AUTO") && !mode.equals("MANUAL"))) {
+            throw new RuntimeException("控制模式必须为 AUTO 或 MANUAL");
+        }
+        List<Devices> members = listByGroup(normalized);
+        if (members.isEmpty()) {
+            throw new RuntimeException("编组不存在或组内无设备: " + normalized);
+        }
+        int ok = 0;
+        for (Devices d : members) {
+            setControlMode(d.getId(), mode);
+            ok++;
+        }
+        log.info("编组「{}」统一模式 → {}，共 {} 台", normalized, mode, ok);
+        return ok;
+    }
+
+    private List<Devices> listByGroup(String groupName) {
+        return this.lambdaQuery()
+                .eq(Devices::getGroupName, groupName)
+                .orderByAsc(Devices::getId)
+                .list();
+    }
+
+    private static String requireGroupName(String groupName) {
+        String normalized = normalizeGroupName(groupName);
+        if (normalized == null) {
+            throw new RuntimeException("编组名称不能为空");
+        }
+        return normalized;
+    }
+
+    /** trim；空串视为 null（未分组） */
+    private static String normalizeGroupName(String groupName) {
+        if (groupName == null) {
+            return null;
+        }
+        String t = groupName.trim();
+        return t.isEmpty() ? null : t;
+    }
+
+    private static String resolveControlMode(String mode) {
+        return (mode == null || mode.isBlank()) ? "AUTO" : mode;
+    }
+
     private DeviceVO toDeviceVO(Devices device) {
+        String expected = resolveExpectedStatus(device.getId());
         return DeviceVO.builder()
                 .id(String.valueOf(device.getId()))
                 .deviceName(device.getDeviceName())
                 .deviceSn(device.getDeviceSn())
                 .status(device.getStatus())
                 .onlineStatus(device.getOnlineStatus())
+                .controlMode(resolveControlMode(device.getControlMode()))
+                .groupName(normalizeGroupName(device.getGroupName()))
+                .expectedStatus(expected)
+                .statusMatch(isStatusMatch(device.getStatus(), expected))
                 .lastHeartbeatTime(device.getLastHeartbeatTime())
                 .createdAt(device.getCreatedAt())
                 .build();
+    }
+
+    /** 最近一次 SUCCESS 且带期望状态的指令 */
+    private String resolveExpectedStatus(Long deviceId) {
+        ControlLogs last = controlLogsMapper.selectOne(
+                new LambdaQueryWrapper<ControlLogs>()
+                        .eq(ControlLogs::getDeviceId, deviceId)
+                        .eq(ControlLogs::getExecutionStatus, "SUCCESS")
+                        .in(ControlLogs::getExpectedStatus, "ON", "OFF")
+                        .orderByDesc(ControlLogs::getCreatedAt)
+                        .last("LIMIT 1"));
+        return last != null ? last.getExpectedStatus() : null;
+    }
+
+    private static boolean isStatusMatch(String actual, String expected) {
+        if (expected == null || expected.isBlank()) {
+            return true;
+        }
+        return expected.equalsIgnoreCase(actual);
     }
 }

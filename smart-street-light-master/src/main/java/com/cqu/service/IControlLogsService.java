@@ -16,9 +16,10 @@ import com.cqu.vo.PageResult;
 public interface IControlLogsService extends IService<ControlLogs> {
 
     /**
-     * 控制日志分页列表（按设备/操作类型/操作人筛选，按时间倒序）
+     * 控制日志分页列表（按设备/操作类型/操作人/来源筛选，按时间倒序）
      */
-    PageResult<ControlLogVO> pageLogs(int page, int pageSize, Long deviceId, String command, Long operatorId);
+    PageResult<ControlLogVO> pageLogs(int page, int pageSize, Long deviceId, String command,
+                                      Long operatorId, String source);
 
     /**
      * 控制日志详情
@@ -26,21 +27,29 @@ public interface IControlLogsService extends IService<ControlLogs> {
     ControlLogVO getDetail(Long id);
 
     /**
-     * 记录操作日志（手动操作，从 UserHolder 获取操作人）
-     *
-     * @param deviceId   关联设备ID（可为 null）
-     * @param command    操作类型
-     * @param result     执行结果
+     * 记录操作日志（立即成功，无硬件回执等待 — 如增删设备）
      */
     void recordLog(Long deviceId, String command, String result);
 
     /**
-     * 记录操作日志（指定来源，用于自动/硬件侧操作）
-     *
-     * @param deviceId   关联设备ID（可为 null）
-     * @param command    操作类型
-     * @param result     执行结果
-     * @param source     指令来源（AUTO / MANUAL）
+     * 记录操作日志（指定来源，立即成功）
      */
     void recordLog(Long deviceId, String command, String result, String source);
+
+    /**
+     * 记录待确认的下发指令（PENDING），等待板端 status 回传匹配 expectedStatus
+     *
+     * @return 控制日志 ID
+     */
+    Long recordPendingCommand(Long deviceId, String command, String source, String expectedStatus);
+
+    /**
+     * 新指令下发前，取消同设备上仍未完成的 PENDING，避免误报 COMMAND_TIMEOUT
+     */
+    void supersedePendingCommands(Long deviceId);
+
+    /**
+     * 板端 status 回传时，将最近一条匹配的 PENDING 指令标记为 SUCCESS
+     */
+    void confirmPendingByStatus(Long deviceId, String status);
 }

@@ -37,6 +37,8 @@ if (-not $BrokerIp) {
         }, IPAddress
     $BrokerIp = ($candidates | Select-Object -First 1).IPAddress
     if (-not $BrokerIp) { throw 'Cannot detect LAN IP; pass -BrokerIp explicitly' }
+} elseif ($BrokerIp -match '[\u4e00-\u9fff]' -or $BrokerIp -match '热点|IP|你的') {
+    throw "BrokerIp looks like a placeholder ($BrokerIp). Use ipconfig WLAN IPv4, or omit -BrokerIp to auto-detect."
 }
 
 $dest = Join-Path $StreetlightDir 'streetlight_config.h'

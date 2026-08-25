@@ -90,8 +90,21 @@ try {
     Fail 'Backend :8080 not responding'
 }
 
-$ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike '127.*' -and $_.PrefixOrigin -ne 'WellKnown' } | Select-Object -First 1).IPAddress
-if ($ip) { Pass "LAN IP for D5 MQTT broker: $ip" } else { Hint 'Could not detect LAN IP' }
+$ipCandidates = Get-NetIPAddress -AddressFamily IPv4 |
+    Where-Object {
+        $_.IPAddress -notlike '127.*' -and
+        $_.IPAddress -notlike '169.254.*' -and
+        $_.InterfaceAlias -notmatch 'WSL|Hyper-V|vEthernet|VMware|VirtualBox'
+    } |
+    Sort-Object -Property @{
+        Expression = {
+            if ($_.InterfaceAlias -match 'WLAN|Wi-Fi|无线') { 0 }
+            elseif ($_.IPAddress -like '192.168.*') { 1 }
+            else { 2 }
+        }
+    }, IPAddress
+$ip = ($ipCandidates | Select-Object -First 1).IPAddress
+if ($ip) { Pass "LAN IP for MQTT broker (WLAN优先): $ip" } else { Hint 'Could not detect LAN IP' }
 
 # C3 sample enabled?
 $buildGn = Join-Path $bearpi 'applications\BearPi\BearPi-HM_Nano\sample\BUILD.gn'

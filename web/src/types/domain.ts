@@ -30,6 +30,14 @@ export interface Device {
   deviceSn: string
   status: 'ON' | 'OFF'
   onlineStatus: 'ONLINE' | 'OFFLINE'
+  /** AUTO=跟阈值；MANUAL=手动锁定 */
+  controlMode: 'AUTO' | 'MANUAL'
+  /** 编组名称；null/空=未分组 */
+  groupName: string | null
+  /** 最近成功指令期望 status；无则 null */
+  expectedStatus?: 'ON' | 'OFF' | string | null
+  /** 期望与实际是否一致（C1） */
+  statusMatch?: boolean
   lastHeartbeatTime: string | null
   createdAt: string
 }
@@ -91,6 +99,24 @@ export interface ThresholdConfig {
   updatedAt: string
 }
 
+/** DEVICE | GROUP 覆盖；优先于全局 */
+export interface ThresholdOverride {
+  id: string
+  scopeType: 'DEVICE' | 'GROUP' | string
+  scopeKey: string
+  scopeLabel: string
+  lightThresholdOn: number
+  lightThresholdOff: number
+  updatedAt: string
+}
+
+export interface EffectiveThreshold {
+  lightThresholdOn: number
+  lightThresholdOff: number
+  source: 'DEVICE' | 'GROUP' | 'GLOBAL' | string
+  sourceKey: string | null
+}
+
 export interface ControlLog {
   id: number
   deviceId: number | null
@@ -100,5 +126,7 @@ export interface ControlLog {
   command: string
   source: string
   result: string
+  executionStatus: 'PENDING' | 'SUCCESS' | 'TIMEOUT' | string
+  expectedStatus: string | null
   createdAt: string
 }

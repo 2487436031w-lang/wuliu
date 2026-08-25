@@ -21,7 +21,9 @@ public interface ILightReadingsService extends IService<LightReadings> {
     /**
      * 光照记录分页列表（支持按设备/时间范围筛选，按采集时间倒序）
      */
-    PageResult<LightReadingsVO> pageReadings(int page, int pageSize, Long deviceId, LocalDateTime startTime, LocalDateTime endTime);
+    PageResult<LightReadingsVO> pageReadings(
+            int page, int pageSize, Long deviceId, String groupName,
+            LocalDateTime startTime, LocalDateTime endTime);
 
     /**
      * 获取指定设备的最新一条光照数据
@@ -29,9 +31,9 @@ public interface ILightReadingsService extends IService<LightReadings> {
     LatestLightVO getLatestLight(Long deviceId);
 
     /**
-     * 历史光照趋势（按时间升序，供折线图使用）
+     * 历史光照趋势。deviceId 优先；否则按 groupName 平均；都空则全体平均。
      */
-    List<TrendPointVO> getTrend(Long deviceId, LocalDateTime startTime, LocalDateTime endTime);
+    List<TrendPointVO> getTrend(Long deviceId, String groupName, LocalDateTime startTime, LocalDateTime endTime);
 
     /**
      * 光照数据上报（含隐式心跳刷新 + 阈值自动判定）

@@ -42,7 +42,7 @@ static void publishStatus(void)
 
     snprintf(payload, sizeof(payload),
         "{\"deviceSn\":\"%s\",\"status\":\"%s\",\"timestamp\":\"live\"}", DEVICE_SN, st);
-    message.qos = 0;
+    message.qos = 1;
     message.retained = 0;
     message.payload = payload;
     message.payloadlen = strlen(payload);
@@ -53,8 +53,45 @@ static void publishStatus(void)
     }
 }
 
-static void applyCommand(const char *cmd)
+/* 从 JSON {"command":"MANUAL_ON",...} 或纯文本中提取 command */
+static void parseCommandPayload(const char *payload, char *cmdOut, size_t cmdOutLen)
 {
+    const char *key = "\"command\"";
+    const char *p = strstr(payload, key);
+    if (p == NULL) {
+        strncpy(cmdOut, payload, cmdOutLen - 1);
+        cmdOut[cmdOutLen - 1] = '\0';
+        return;
+    }
+    p = strchr(p + strlen(key), '"');
+    if (p == NULL) {
+        strncpy(cmdOut, payload, cmdOutLen - 1);
+        cmdOut[cmdOutLen - 1] = '\0';
+        return;
+    }
+    p++;
+    {
+        const char *end = strchr(p, '"');
+        size_t n;
+        if (end == NULL) {
+            strncpy(cmdOut, payload, cmdOutLen - 1);
+            cmdOut[cmdOutLen - 1] = '\0';
+            return;
+        }
+        n = (size_t)(end - p);
+        if (n >= cmdOutLen) {
+            n = cmdOutLen - 1;
+        }
+        memcpy(cmdOut, p, n);
+        cmdOut[n] = '\0';
+    }
+}
+
+static void applyCommand(const char *rawPayload)
+{
+    char cmd[48];
+
+    parseCommandPayload(rawPayload, cmd, sizeof(cmd));
     /* OFF 必须先于 ON：MANUAL_OFF / AUTO_OFF 都含 OFF，不能先匹配 ON */
     if (strstr(cmd, "OFF") != NULL) {
         Light_StatusSet(OFF);
@@ -63,6 +100,7 @@ static void applyCommand(const char *cmd)
         Light_StatusSet(ON);
         lampStatus = ON;
     } else {
+        printf("unknown command: %s\n", cmd);
         return;
     }
     publishStatus();
@@ -186,8 +224,14 @@ static void StreetlightTask(void)
     publishStatus();
 
     while (1) {
+        int yieldRound;
         /* 短超时 + 非阻塞 socket：即使没有下行指令也要回到这里发光照 */
-        (void)MQTTYield(&client, 10);
+        for (yieldRound = 0; yieldRound < 3; yieldRound++) {
+            (void)MQTTYield(&client, 10);
+            if (pendingCommand) {
+                break;
+            }
+        }
 
         if (pendingCommand) {
             printf("command arrived: %s\n", pendingCmdBuf);
