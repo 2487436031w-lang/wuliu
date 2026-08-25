@@ -56,9 +56,9 @@ CREATE INDEX IF NOT EXISTS idx_light_readings_device_time
 CREATE TABLE IF NOT EXISTS control_logs
 (
     id                BIGSERIAL PRIMARY KEY,
-    device_id         BIGINT      NOT NULL,
+    device_id         BIGINT,                                  -- 系统级操作（改阈值等）可为 NULL
     operator_id       BIGINT,                                  -- 手动操作人（AUTO时为NULL）
-    command           VARCHAR(16)  NOT NULL DEFAULT 'OFF',     -- ON | OFF | AUTO_ON | MANUAL_ON ...
+    command           VARCHAR(64) NOT NULL DEFAULT 'OFF',      -- ON | OFF | UPDATE_THRESHOLD ...
     source            VARCHAR(16) NOT NULL DEFAULT 'MANUAL',  -- AUTO | MANUAL
     result            VARCHAR(16) NOT NULL DEFAULT 'SUCCESS', -- SUCCESS | FAIL | PENDING
     execution_status  VARCHAR(16) NOT NULL DEFAULT 'SUCCESS', -- PENDING | SUCCESS | TIMEOUT
@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS control_logs
     created_at        TIMESTAMP   NOT NULL DEFAULT now()
 );
 COMMENT ON TABLE control_logs IS '路灯控制指令日志';
+COMMENT ON COLUMN control_logs.device_id IS '设备ID；系统级操作（如改阈值）可为 NULL';
 COMMENT ON COLUMN control_logs.source IS '指令来源: AUTO-光照联动自动, MANUAL-手动远程';
 COMMENT ON COLUMN control_logs.execution_status IS '指令执行状态: PENDING | SUCCESS | TIMEOUT';
 COMMENT ON COLUMN control_logs.expected_status IS '期望板端回传 status: ON | OFF';
