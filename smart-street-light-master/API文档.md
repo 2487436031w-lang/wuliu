@@ -125,6 +125,10 @@
 | deviceSn          | string | 设备序列号                 |
 | status            | string | 开关状态：ON / OFF         |
 | onlineStatus      | string | 在线状态：ONLINE / OFFLINE |
+| controlMode       | string | 控制模式：AUTO / MANUAL   |
+| groupName         | string | 编组名称；空/null=未分组      |
+| expectedStatus    | string | 最近成功指令期望 status（ON/OFF）；无则 null |
+| statusMatch       | bool   | 期望与实际是否一致（C1）；无期望时为 true |
 | lastHeartbeatTime | string | 最近心跳时间                |
 | createdAt         | string | 创建时间                  |
 
@@ -150,6 +154,8 @@
 | deviceSn              | string | 设备序列号   |
 | status                | string | 开关状态    |
 | onlineStatus          | string | 在线状态    |
+| expectedStatus        | string | 期望开关状态  |
+| statusMatch           | bool   | 期望与实际是否一致 |
 | lastHeartbeatTime     | string | 最近心跳时间  |
 | latestLightIntensity  | number | 最新光照强度值 |
 | activeAlarmCount      | long   | 活跃告警数   |
@@ -301,8 +307,60 @@ WebSocket 推送 `DEVICE_ONLINE_STATUS_CHANGED`。服务端另有
 |---------|--------|-------------------------------------|
 | command | string | `MANUAL_ON` 或 `MANUAL_OFF`（硬件通知通道预留） |
 
-**作用**：前端管理员手动控制路灯开关。后端更新 `devices.status`，记录控制日志（source=MANUAL），通过 WebSocket
+**作用**：前端管理员手动控制路灯开关。后端更新 `devices.status`，**并将该设备 `control_mode` 设为 `MANUAL`**（后续光照上报不再触发 AUTO_ON/AUTO_OFF），记录控制日志（source=MANUAL），通过 WebSocket
 推送 `DEVICE_STATUS_CHANGED`。开关指令通过 MQTT `smart-light/{deviceSn}/command`（QoS 1）下发至硬件，同时 HTTP 响应中返回 command 作为降级。
+
+---
+
+### 2.10 设置控制模式（手动 / 自动）
+
+| 项目       | 内容                                          |
+|----------|---------------------------------------------|
+| **URL**  | `PUT /devices/{id}/control-mode`            |
+| **请求体**  | `{"mode": "AUTO\|MANUAL"}`                  |
+| **成功返回** | `{"code": 200, "data": "模式已更新为 AUTO"}`   |
+
+| 请求字段 | 类型     | 必填 | 说明 |
+|--------|--------|----|------|
+| mode   | string | 是  | `AUTO` 恢复阈值联动；`MANUAL` 手动锁定 |
+
+**作用**：`AUTO` 时按光照阈值自动开关；`MANUAL` 时忽略自动规则。Web 手动开/关灯会自动进入 `MANUAL`；要重新跟阈值需调本接口或点「恢复自动」。
+
+---
+
+### 2.11 设置设备编组
+
+| 项目       | 内容                                                    |
+|----------|-------------------------------------------------------|
+| **URL**  | `PUT /devices/{id}/group`                             |
+| **请求体**  | `{"groupName": "人民路"}`；传 `null` 或 `""` 表示移出编组       |
+| **成功返回** | `{"code": 200, "data": "已加入编组 人民路"}`                 |
+
+**作用**：同名 `groupName` 的设备视为一组。前端按组渲染二级托盘，并支持组级统一控制。
+
+---
+
+### 2.12 编组统一开关灯
+
+| 项目       | 内容                                                              |
+|----------|-----------------------------------------------------------------|
+| **URL**  | `POST /devices/group-switch`                                    |
+| **请求体**  | `{"groupName": "人民路", "status": "ON\|OFF"}`                    |
+| **成功返回** | `{"code": 200, "data": {"count": 2, "command": "MANUAL_ON", "controlMode": "MANUAL"}}` |
+
+**作用**：对组内每台设备依次执行与 `POST /devices/{id}/switch` 相同的逻辑（进入 MANUAL + MQTT 下发）。
+
+---
+
+### 2.13 编组统一控制模式
+
+| 项目       | 内容                                                              |
+|----------|-----------------------------------------------------------------|
+| **URL**  | `PUT /devices/group-control-mode`                               |
+| **请求体**  | `{"groupName": "人民路", "mode": "AUTO\|MANUAL"}`                 |
+| **成功返回** | `{"code": 200, "data": {"count": 2, "mode": "AUTO"}}`           |
+
+**作用**：对组内每台设备设置相同控制模式。
 
 ---
 
@@ -315,13 +373,14 @@ WebSocket 推送 `DEVICE_ONLINE_STATUS_CHANGED`。服务端另有
 | **URL**  | `GET /light-readings`                                                  |
 | **成功返回** | `{"code": 200, "data": {"total": long, "records": [LightReadingsVO]}}` |
 
-| 请求参数      | 类型     | 必填 | 默认值 | 说明                        |
-|-----------|--------|----|-----|---------------------------|
-| page      | int    | 是  | 1   | 页码                        |
-| pageSize  | int    | 是  | 10  | 每页条数                      |
-| deviceId  | long   | 否  | —   | 设备ID                      |
-| startTime | string | 否  | —   | 开始时间（yyyy-MM-dd HH:mm:ss） |
-| endTime   | string | 否  | —   | 结束时间（yyyy-MM-dd HH:mm:ss） |
+| 请求参数      | 类型     | 必填 | 默认值 | 说明                                      |
+|-----------|--------|----|-----|-----------------------------------------|
+| page      | int    | 是  | 1   | 页码                                      |
+| pageSize  | int    | 是  | 10  | 每页条数                                    |
+| deviceId  | long   | 否  | —   | 设备ID（优先）；与 groupName 互斥时以 deviceId 为准 |
+| groupName | string | 否  | —   | 编组名；无 deviceId 时按编组筛选                   |
+| startTime | string | 否  | —   | 开始时间（yyyy-MM-dd HH:mm:ss）               |
+| endTime   | string | 否  | —   | 结束时间（yyyy-MM-dd HH:mm:ss）               |
 
 | 返回字段 (LightReadingsVO) | 类型     | 说明    |
 |------------------------|--------|-------|
@@ -363,18 +422,19 @@ WebSocket 推送 `DEVICE_ONLINE_STATUS_CHANGED`。服务端另有
 | **URL**  | `GET /light-readings/trend`             |
 | **成功返回** | `{"code": 200, "data": [TrendPointVO]}` |
 
-| 请求参数      | 类型     | 必填 | 说明                        |
-|-----------|--------|----|---------------------------|
-| deviceId  | long   | 是  | 设备ID                      |
-| startTime | string | 是  | 开始时间（yyyy-MM-dd HH:mm:ss） |
-| endTime   | string | 是  | 结束时间（yyyy-MM-dd HH:mm:ss） |
+| 请求参数      | 类型     | 必填 | 说明                                      |
+|-----------|--------|----|-----------------------------------------|
+| deviceId  | long   | 否  | 单设备：原始采样点；优先于 groupName               |
+| groupName | string | 否  | 编组平均：按分钟聚合；都不传则为全体设备平均               |
+| startTime | string | 是  | 开始时间（yyyy-MM-dd HH:mm:ss）               |
+| endTime   | string | 是  | 结束时间（yyyy-MM-dd HH:mm:ss）               |
 
-| 返回字段 (TrendPointVO) | 类型     | 说明    |
-|---------------------|--------|-------|
-| time                | string | 采集时间  |
-| value               | number | 光照强度值 |
+| 返回字段 (TrendPointVO) | 类型     | 说明                          |
+|---------------------|--------|-----------------------------|
+| time                | string | 采集时间（聚合时为分钟对齐）              |
+| value               | number | 光照强度值（单设备原始值 / 范围平均 lux） |
 
-**作用**：查询指定时间范围内的光照变化，按时间升序排列，供前端折线图使用。
+**作用**：查询指定时间范围内的光照变化。单设备返回原始点；编组/全体按分钟平均，供前端柱/折线图使用。
 
 ---
 
@@ -561,7 +621,63 @@ WebSocket 推送 `DEVICE_ONLINE_STATUS_CHANGED`。服务端另有
 | lightThresholdOff | number | 是  | 关灯阈值，必须 > 开灯阈值 |
 | heartbeatTimeout  | int    | 是  | 心跳超时秒数，必须 > 0  |
 
-**作用**：修改光照自动开关阈值和心跳超时参数。
+**作用**：修改全局默认光照自动开关阈值和心跳超时参数。心跳超时仅全局生效。
+
+优先级：设备覆盖 > 编组覆盖 > 全局 `threshold_config`。
+
+---
+
+### 5.3 列出阈值覆盖
+
+| 项目       | 内容                                              |
+|----------|-------------------------------------------------|
+| **URL**  | `GET /threshold-config/overrides`               |
+| **成功返回** | `{"code": 200, "data": [ThresholdOverrideVO]}` |
+
+| 返回字段            | 类型     | 说明                    |
+|-----------------|--------|-----------------------|
+| id              | string | 覆盖记录 ID               |
+| scopeType       | string | `DEVICE` \| `GROUP`   |
+| scopeKey        | string | 设备 ID 或编组名            |
+| scopeLabel      | string | 展示名（设备名或编组名）          |
+| lightThresholdOn  | number | 开灯阈值                |
+| lightThresholdOff | number | 关灯阈值                |
+| updatedAt       | string | 更新时间                  |
+
+---
+
+### 5.4 保存阈值覆盖（新建或更新）
+
+| 项目       | 内容                                                                                         |
+|----------|--------------------------------------------------------------------------------------------|
+| **URL**  | `PUT /threshold-config/overrides`                                                          |
+| **请求体**  | `{"scopeType":"GROUP\|DEVICE","scopeKey":"…","lightThresholdOn":n,"lightThresholdOff":n}` |
+| **成功返回** | `{"code": 200, "data": "覆盖已保存"}`                                                            |
+
+---
+
+### 5.5 删除阈值覆盖
+
+| 项目       | 内容                                                         |
+|----------|------------------------------------------------------------|
+| **URL**  | `DELETE /threshold-config/overrides?scopeType=&scopeKey=` |
+| **成功返回** | `{"code": 200, "data": "覆盖已删除"}`                           |
+
+---
+
+### 5.6 查询设备生效阈值
+
+| 项目       | 内容                                               |
+|----------|--------------------------------------------------|
+| **URL**  | `GET /threshold-config/effective/{deviceId}`     |
+| **成功返回** | `{"code": 200, "data": EffectiveThresholdVO}`    |
+
+| 返回字段              | 类型     | 说明                          |
+|-------------------|--------|-----------------------------|
+| lightThresholdOn  | number | 生效开灯阈值                      |
+| lightThresholdOff | number | 生效关灯阈值                      |
+| source            | string | `DEVICE` \| `GROUP` \| `GLOBAL` |
+| sourceKey         | string | 覆盖键；全局时为 null               |
 
 ---
 

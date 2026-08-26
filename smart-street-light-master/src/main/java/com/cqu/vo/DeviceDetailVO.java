@@ -22,6 +22,14 @@ public class DeviceDetailVO {
     private String deviceSn;
     private String status;
     private String onlineStatus;
+    /** AUTO | MANUAL */
+    private String controlMode;
+    /** 编组名称，空=未分组 */
+    private String groupName;
+    /** 最近一次成功指令的期望 status；无则 null */
+    private String expectedStatus;
+    /** 期望与实际是否一致 */
+    private Boolean statusMatch;
     private LocalDateTime lastHeartbeatTime;
     private BigDecimal latestLightIntensity;
     private String activeAlarmCount;

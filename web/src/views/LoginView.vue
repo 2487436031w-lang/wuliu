@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { apiMode, isHttpMode, isMockMode } from '../config/runtime'
 import type { Role } from '../types/domain'
 import { ROLE_LABEL } from '../types/domain'
+import BrandIcon from '../components/BrandIcon.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -15,6 +17,27 @@ const role = ref<Role>('MUNICIPAL_STAFF')
 const loading = ref(false)
 const error = ref('')
 const tip = ref('')
+const backendOk = ref<boolean | null>(null)
+
+async function checkBackend() {
+  if (!isHttpMode) {
+    backendOk.value = null
+    return
+  }
+  try {
+    const res = await fetch('/users/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: '__ping__', password: '__ping__' }),
+    })
+    const body = (await res.json()) as { code?: number }
+    backendOk.value = typeof body.code === 'number'
+  } catch {
+    backendOk.value = false
+  }
+}
+
+onMounted(checkBackend)
 
 async function submit() {
   loading.value = true
@@ -40,39 +63,63 @@ async function submit() {
 
 <template>
   <div class="login">
-    <section class="hero">
-      <p class="mark">灯廊</p>
-      <h1>路灯亮起的一刻，城市才有夜班。</h1>
+    <section class="hero slide-up-enter-active">
+      <div class="hero-badge">
+        <BrandIcon :size="28" />
+      </div>
+      <h1>城市照明，一屏尽览</h1>
       <p class="lead">
-        对齐 <code class="mono">smart-street-light-master</code>：设备、光照阈值、告警与 STOMP 推送。
-        Mock 演示账号 <span class="mono">admin / admin123</span>。
+        设备管理、光照阈值、告警与实时推送 — 对齐
+        <code class="mono">smart-street-light-master</code> 后端。
+      </p>
+      <p class="mode-badge mono" :data-mode="apiMode">
+        {{ isMockMode ? 'Mock 内存演示' : 'HTTP 真后端' }} · {{ apiMode }}
+      </p>
+      <p v-if="isHttpMode && backendOk === false" class="hint warn">
+        后端未响应。请先在 <code class="mono">smart-street-light-master</code> 启动 Java 服务（:8080）。
+      </p>
+      <p v-else-if="isHttpMode && backendOk" class="hint">
+        后端已连通。账号来自 <code class="mono">sql/test-data.sql</code>：
+        <span class="mono">admin / admin123</span>
+      </p>
+      <p v-else class="hint">
+        Mock 演示账号 <span class="mono">admin / admin123</span>
       </p>
     </section>
 
-    <form class="panel" @submit.prevent="submit">
-      <div class="tabs">
+    <form class="panel slide-up-enter-active slide-up-delay-1" @submit.prevent="submit">
+      <div class="ui-tabs">
         <button type="button" :class="{ on: mode === 'login' }" @click="mode = 'login'">登录</button>
         <button type="button" :class="{ on: mode === 'register' }" @click="mode = 'register'">
           注册
         </button>
       </div>
-      <label>
+
+      <label class="ui-label">
         用户名
-        <input v-model="username" required autocomplete="username" />
+        <input v-model="username" class="ui-input" required autocomplete="username" />
       </label>
-      <label>
+      <label class="ui-label">
         密码
-        <input v-model="password" type="password" required autocomplete="current-password" />
+        <input
+          v-model="password"
+          class="ui-input"
+          type="password"
+          required
+          autocomplete="current-password"
+        />
       </label>
-      <label v-if="mode === 'register'">
+      <label v-if="mode === 'register'" class="ui-label">
         角色
-        <select v-model="role">
+        <select v-model="role" class="ui-select">
           <option v-for="(label, key) in ROLE_LABEL" :key="key" :value="key">{{ label }}</option>
         </select>
       </label>
-      <p v-if="error" class="err">{{ error }}</p>
-      <p v-if="tip" class="ok">{{ tip }}</p>
-      <button type="submit" class="submit" :disabled="loading">
+
+      <p v-if="error" class="ui-msg ui-msg-error">{{ error }}</p>
+      <p v-if="tip" class="ui-msg">{{ tip }}</p>
+
+      <button type="submit" class="ui-btn ui-btn-warm submit" :disabled="loading">
         {{ loading ? '提交中…' : mode === 'login' ? '进入灯廊' : '创建账号' }}
       </button>
     </form>
@@ -83,112 +130,103 @@ async function submit() {
 .login {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
-  gap: 28px;
-  padding: 48px;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: var(--space-10);
+  padding: var(--space-10);
   align-items: center;
+  max-width: 1100px;
+  margin: 0 auto;
 }
+
 .hero {
-  max-width: 520px;
-  animation: rise 0.65s ease both;
+  max-width: 480px;
 }
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: var(--space-5);
+  border-radius: var(--radius-md);
+  background: linear-gradient(145deg, var(--sodium) 0%, #ffcc00 100%);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(255, 149, 0, 0.3);
 }
-.mark {
-  margin: 0 0 16px;
-  font-family: var(--font-display);
-  font-size: 68px;
-  line-height: 0.85;
-  color: var(--sodium-deep);
-  letter-spacing: 0.1em;
-}
+
 .hero h1 {
-  font-size: clamp(34px, 4.5vw, 50px);
-  line-height: 1.05;
-  max-width: 11ch;
+  font-size: clamp(32px, 4vw, 44px);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
 }
+
 .lead {
-  margin-top: 16px;
+  margin-top: var(--space-4);
   color: var(--ink-soft);
-  line-height: 1.55;
-  font-size: 17px;
+  line-height: var(--leading-normal);
+  font-size: var(--text-lg);
 }
+
+.mode-badge {
+  margin: var(--space-4) 0 0;
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  background: var(--panel);
+  box-shadow: var(--shadow-sm), var(--shadow-inset);
+  color: var(--ink-soft);
+}
+
+.mode-badge[data-mode='http'] {
+  color: var(--online);
+  background: var(--online-soft);
+}
+
+.mode-badge[data-mode='mock'] {
+  color: var(--sodium);
+  background: var(--sodium-soft);
+}
+
+.hint {
+  margin: var(--space-3) 0 0;
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.hint.warn {
+  color: var(--danger);
+}
+
 .panel {
   justify-self: end;
-  width: min(100%, 380px);
+  width: min(100%, 400px);
   display: grid;
-  gap: 12px;
-  padding: 24px;
-  background: rgba(242, 244, 247, 0.94);
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow);
-  animation: rise 0.65s ease 0.06s both;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  background: var(--panel);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
 }
-.tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  margin-bottom: 4px;
-}
-.tabs button {
-  border: 1px solid var(--line);
-  background: #fff;
-  padding: 8px;
-  cursor: pointer;
-  border-radius: var(--radius);
-}
-.tabs button.on {
-  background: var(--steel);
-  color: #fff;
-  border-color: var(--steel);
-}
-label {
-  display: grid;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--ink-soft);
-}
-input,
-select {
-  font: inherit;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: #fff;
-}
+
 .submit {
-  margin-top: 4px;
-  border: 0;
-  background: var(--sodium);
-  color: #121820;
-  font-weight: 600;
-  padding: 11px;
-  cursor: pointer;
-  border-radius: var(--radius);
+  margin-top: var(--space-1);
+  width: 100%;
+  padding: 12px;
+  font-size: var(--text-base);
 }
-.err {
-  margin: 0;
-  color: var(--danger);
-  font-size: 13px;
-}
-.ok {
-  margin: 0;
-  color: var(--online);
-  font-size: 13px;
-}
+
 @media (max-width: 840px) {
   .login {
     grid-template-columns: 1fr;
-    padding: 24px 16px;
+    padding: var(--space-6) var(--space-4);
+    gap: var(--space-6);
   }
+
   .panel {
     justify-self: stretch;
   }

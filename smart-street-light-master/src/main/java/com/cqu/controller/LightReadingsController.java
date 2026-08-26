@@ -32,16 +32,18 @@ public class LightReadingsController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize,
             @RequestParam(required = false) String deviceId,
+            @RequestParam(required = false) String groupName,
             @RequestParam(required = false) String startTime,
             @RequestParam(required = false) String endTime) {
-        log.info("查询光照记录: page={}, pageSize={}, deviceId={}, startTime={}, endTime={}",
-                page, pageSize, deviceId, startTime, endTime);
+        log.info("查询光照记录: page={}, pageSize={}, deviceId={}, groupName={}",
+                page, pageSize, deviceId, groupName);
 
         LocalDateTime start = parseTime(startTime);
         LocalDateTime end = parseTime(endTime);
 
-        Long deviceIdLong = deviceId != null ? Long.valueOf(deviceId) : null;
-        PageResult<LightReadingsVO> result = lightReadingsService.pageReadings(page, pageSize, deviceIdLong, start, end);
+        Long deviceIdLong = deviceId != null && !deviceId.isBlank() ? Long.valueOf(deviceId) : null;
+        PageResult<LightReadingsVO> result =
+                lightReadingsService.pageReadings(page, pageSize, deviceIdLong, groupName, start, end);
         return Result.success(result);
     }
 
@@ -56,19 +58,22 @@ public class LightReadingsController {
     }
 
     /**
-     * 历史光照趋势
+     * 历史光照趋势：deviceId / groupName / 全体（都不传）
      */
     @GetMapping("/trend")
     public Result<List<TrendPointVO>> trend(
-            @RequestParam String deviceId,
+            @RequestParam(required = false) String deviceId,
+            @RequestParam(required = false) String groupName,
             @RequestParam String startTime,
             @RequestParam String endTime) {
-        log.info("查询光照趋势: deviceId={}, startTime={}, endTime={}", deviceId, startTime, endTime);
+        log.info("查询光照趋势: deviceId={}, groupName={}, startTime={}, endTime={}",
+                deviceId, groupName, startTime, endTime);
 
         LocalDateTime start = parseTime(startTime);
         LocalDateTime end = parseTime(endTime);
+        Long deviceIdLong = deviceId != null && !deviceId.isBlank() ? Long.valueOf(deviceId) : null;
 
-        List<TrendPointVO> trend = lightReadingsService.getTrend(Long.valueOf(deviceId), start, end);
+        List<TrendPointVO> trend = lightReadingsService.getTrend(deviceIdLong, groupName, start, end);
         return Result.success(trend);
     }
 

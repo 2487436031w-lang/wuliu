@@ -1,28 +1,26 @@
 package com.cqu.service;
 
-import com.cqu.entity.ThresholdConfig;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.cqu.entity.ThresholdConfig;
+import com.cqu.vo.EffectiveThresholdVO;
 import com.cqu.vo.ThresholdConfigVO;
+import com.cqu.vo.ThresholdOverrideVO;
 
 import java.math.BigDecimal;
+import java.util.List;
 
-/**
- * <p>
- * 系统阈值配置表 服务类
- * </p>
- *
- * @author
- * @since 2026-06-29
- */
 public interface IThresholdConfigService extends IService<ThresholdConfig> {
 
-    /**
-     * 获取当前阈值配置
-     */
     ThresholdConfigVO getConfig();
 
-    /**
-     * 更新阈值配置
-     */
     void updateConfig(BigDecimal lightThresholdOn, BigDecimal lightThresholdOff, Integer heartbeatTimeout);
+
+    /** 解析生效阈值：DEVICE > GROUP > GLOBAL */
+    EffectiveThresholdVO resolveEffective(Long deviceId);
+
+    List<ThresholdOverrideVO> listOverrides();
+
+    void upsertOverride(String scopeType, String scopeKey, BigDecimal on, BigDecimal off);
+
+    void deleteOverride(String scopeType, String scopeKey);
 }

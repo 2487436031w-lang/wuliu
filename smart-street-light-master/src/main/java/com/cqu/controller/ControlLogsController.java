@@ -25,12 +25,13 @@ public class ControlLogsController {
             @RequestParam(defaultValue = "10") int pageSize,
             @RequestParam(required = false) String deviceId,
             @RequestParam(required = false) String command,
-            @RequestParam(required = false) String operatorId) {
-        log.info("查询控制日志: page={}, pageSize={}, deviceId={}, command={}, operatorId={}",
-                page, pageSize, deviceId, command, operatorId);
+            @RequestParam(required = false) String operatorId,
+            @RequestParam(required = false) String source) {
+        log.info("查询控制日志: page={}, pageSize={}, deviceId={}, command={}, operatorId={}, source={}",
+                page, pageSize, deviceId, command, operatorId, source);
         PageResult<ControlLogVO> result = controlLogsService.pageLogs(page, pageSize,
                 deviceId != null ? Long.valueOf(deviceId) : null, command,
-                operatorId != null ? Long.valueOf(operatorId) : null);
+                operatorId != null ? Long.valueOf(operatorId) : null, source);
         return Result.success(result);
     }
 

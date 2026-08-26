@@ -116,7 +116,7 @@ public class DevicesController {
     }
 
     /**
-     * 手动开关灯控制（前端下发 → 后端更新状态 → 预留硬件通知通道）
+     * 手动开关灯控制（进入 MANUAL 模式，忽略光照自动开关）
      */
     @PostMapping("/{id}/switch")
     public Result<Map<String, String>> switchDevice(@PathVariable String id, @RequestBody Map<String, Object> body) {
@@ -126,6 +126,60 @@ public class DevicesController {
 
         Map<String, String> response = new LinkedHashMap<>();
         response.put("command", command);
+        response.put("controlMode", "MANUAL");
+        return Result.success(response);
+    }
+
+    /**
+     * 设置控制模式：AUTO 恢复阈值联动；MANUAL 手动锁定
+     */
+    @PutMapping("/{id}/control-mode")
+    public Result<String> setControlMode(@PathVariable String id, @RequestBody Map<String, Object> body) {
+        String mode = (String) body.get("mode");
+        log.info("设置控制模式: deviceId={}, mode={}", id, mode);
+        devicesService.setControlMode(Long.valueOf(id), mode);
+        return Result.success("模式已更新为 " + mode);
+    }
+
+    /**
+     * 设置设备编组；groupName 为空则移出分组
+     */
+    @PutMapping("/{id}/group")
+    public Result<String> setDeviceGroup(@PathVariable String id, @RequestBody Map<String, Object> body) {
+        String groupName = body.get("groupName") != null ? body.get("groupName").toString() : null;
+        log.info("设置编组: deviceId={}, groupName={}", id, groupName);
+        devicesService.setDeviceGroup(Long.valueOf(id), groupName);
+        return Result.success(groupName == null || groupName.isBlank() ? "已移出编组" : "已加入编组 " + groupName.trim());
+    }
+
+    /**
+     * 编组统一开关灯
+     */
+    @PostMapping("/group-switch")
+    public Result<Map<String, Object>> switchGroup(@RequestBody Map<String, Object> body) {
+        String groupName = body.get("groupName") != null ? body.get("groupName").toString() : null;
+        String status = (String) body.get("status");
+        log.info("编组统一开关: groupName={}, status={}", groupName, status);
+        int count = devicesService.switchGroup(groupName, status);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("count", count);
+        response.put("command", "ON".equals(status) ? "MANUAL_ON" : "MANUAL_OFF");
+        response.put("controlMode", "MANUAL");
+        return Result.success(response);
+    }
+
+    /**
+     * 编组统一控制模式
+     */
+    @PutMapping("/group-control-mode")
+    public Result<Map<String, Object>> setGroupControlMode(@RequestBody Map<String, Object> body) {
+        String groupName = body.get("groupName") != null ? body.get("groupName").toString() : null;
+        String mode = (String) body.get("mode");
+        log.info("编组统一模式: groupName={}, mode={}", groupName, mode);
+        int count = devicesService.setGroupControlMode(groupName, mode);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("count", count);
+        response.put("mode", mode);
         return Result.success(response);
     }
 }

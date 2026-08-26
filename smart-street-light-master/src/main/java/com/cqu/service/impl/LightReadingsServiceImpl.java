@@ -4,13 +4,12 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cqu.entity.Devices;
 import com.cqu.entity.LightReadings;
-import com.cqu.entity.ThresholdConfig;
 import com.cqu.mapper.DevicesMapper;
 import com.cqu.mapper.LightReadingsMapper;
-import com.cqu.mapper.ThresholdConfigMapper;
 import com.cqu.config.MqttConfig;
 import com.cqu.service.IControlLogsService;
 import com.cqu.service.ILightReadingsService;
+import com.cqu.service.IThresholdConfigService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.cqu.vo.*;
 import lombok.extern.slf4j.Slf4j;
@@ -19,7 +18,9 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +42,7 @@ public class LightReadingsServiceImpl extends ServiceImpl<LightReadingsMapper, L
     private DevicesMapper devicesMapper;
 
     @Autowired
-    private ThresholdConfigMapper thresholdConfigMapper;
+    private IThresholdConfigService thresholdConfigService;
 
     @Autowired
     private IControlLogsService controlLogsService;
@@ -53,22 +54,26 @@ public class LightReadingsServiceImpl extends ServiceImpl<LightReadingsMapper, L
     private MqttConfig mqttConfig;
 
     @Override
-    public PageResult<LightReadingsVO> pageReadings(int page, int pageSize, Long deviceId, LocalDateTime startTime, LocalDateTime endTime) {
+    public PageResult<LightReadingsVO> pageReadings(
+            int page, int pageSize, Long deviceId, String groupName,
+            LocalDateTime startTime, LocalDateTime endTime) {
+        List<Long> deviceIds = resolveDeviceIds(deviceId, groupName);
         LambdaQueryWrapper<LightReadings> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(deviceId != null, LightReadings::getDeviceId, deviceId);
+        if (deviceIds != null) {
+            if (deviceIds.isEmpty()) {
+                return PageResult.of(0L, List.of());
+            }
+            wrapper.in(LightReadings::getDeviceId, deviceIds);
+        }
         wrapper.ge(startTime != null, LightReadings::getCreatedAt, startTime);
         wrapper.le(endTime != null, LightReadings::getCreatedAt, endTime);
         wrapper.orderByDesc(LightReadings::getCreatedAt);
 
         Page<LightReadings> pageResult = this.page(new Page<>(page, pageSize), wrapper);
-
-        // 批量获取设备名称
         Map<Long, String> deviceNameMap = buildDeviceNameMap(pageResult.getRecords());
-
         List<LightReadingsVO> records = pageResult.getRecords().stream()
                 .map(r -> toLightReadingsVO(r, deviceNameMap.get(r.getDeviceId())))
                 .collect(Collectors.toList());
-
         return PageResult.of(pageResult.getTotal(), records);
     }
 
@@ -92,21 +97,80 @@ public class LightReadingsServiceImpl extends ServiceImpl<LightReadingsMapper, L
     }
 
     @Override
-    public List<TrendPointVO> getTrend(Long deviceId, LocalDateTime startTime, LocalDateTime endTime) {
+    public List<TrendPointVO> getTrend(Long deviceId, String groupName, LocalDateTime startTime, LocalDateTime endTime) {
+        List<Long> deviceIds = resolveDeviceIds(deviceId, groupName);
+        if (deviceIds != null && deviceIds.isEmpty()) {
+            return List.of();
+        }
+
+        // 单设备：原始点；总体/编组：按分钟平均
+        boolean aggregate = deviceId == null;
         LambdaQueryWrapper<LightReadings> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(LightReadings::getDeviceId, deviceId)
-                .ge(startTime != null, LightReadings::getCreatedAt, startTime)
+        if (deviceIds != null) {
+            wrapper.in(LightReadings::getDeviceId, deviceIds);
+        }
+        wrapper.ge(startTime != null, LightReadings::getCreatedAt, startTime)
                 .le(endTime != null, LightReadings::getCreatedAt, endTime)
                 .orderByAsc(LightReadings::getCreatedAt);
 
         List<LightReadings> list = this.list(wrapper);
+        if (!aggregate) {
+            return list.stream()
+                    .map(r -> TrendPointVO.builder()
+                            .time(r.getCreatedAt())
+                            .value(r.getLightIntensity())
+                            .build())
+                    .collect(Collectors.toList());
+        }
 
-        return list.stream()
-                .map(r -> TrendPointVO.builder()
-                        .time(r.getCreatedAt())
-                        .value(r.getLightIntensity())
-                        .build())
-                .collect(Collectors.toList());
+        Map<LocalDateTime, Map<Long, List<BigDecimal>>> buckets = new LinkedHashMap<>();
+        for (LightReadings r : list) {
+            LocalDateTime key = r.getCreatedAt().withSecond(0).withNano(0);
+            buckets
+                    .computeIfAbsent(key, k -> new LinkedHashMap<>())
+                    .computeIfAbsent(r.getDeviceId(), id -> new ArrayList<>())
+                    .add(r.getLightIntensity());
+        }
+        List<TrendPointVO> points = new ArrayList<>();
+        for (Map.Entry<LocalDateTime, Map<Long, List<BigDecimal>>> e : buckets.entrySet()) {
+            // 先按设备求该分钟均值，再对设备均值取平均，避免上报频率不同拉偏总体
+            BigDecimal deviceSum = BigDecimal.ZERO;
+            int deviceCount = 0;
+            for (List<BigDecimal> samples : e.getValue().values()) {
+                if (samples.isEmpty()) {
+                    continue;
+                }
+                BigDecimal sum = BigDecimal.ZERO;
+                for (BigDecimal v : samples) {
+                    sum = sum.add(v);
+                }
+                deviceSum = deviceSum.add(
+                        sum.divide(BigDecimal.valueOf(samples.size()), 4, RoundingMode.HALF_UP));
+                deviceCount++;
+            }
+            if (deviceCount == 0) {
+                continue;
+            }
+            BigDecimal avg = deviceSum.divide(BigDecimal.valueOf(deviceCount), 2, RoundingMode.HALF_UP);
+            points.add(TrendPointVO.builder().time(e.getKey()).value(avg).build());
+        }
+        return points;
+    }
+
+    /** deviceId 优先；否则 groupName；都空则全部（返回 null 表示不限制） */
+    private List<Long> resolveDeviceIds(Long deviceId, String groupName) {
+        if (deviceId != null) {
+            return List.of(deviceId);
+        }
+        if (groupName != null && !groupName.isBlank()) {
+            return devicesMapper.selectList(
+                            new LambdaQueryWrapper<Devices>()
+                                    .eq(Devices::getGroupName, groupName.trim()))
+                    .stream()
+                    .map(Devices::getId)
+                    .collect(Collectors.toList());
+        }
+        return null;
     }
 
     @Override
@@ -162,9 +226,14 @@ public class LightReadingsServiceImpl extends ServiceImpl<LightReadingsMapper, L
         // 光照阈值自动开关灯判定，返回下发给硬件的指令
         String command = checkAndAutoControl(deviceId, lightIntensity);
 
-        // 通过 MQTT 下发自动开关指令给硬件
+        // 通过 MQTT 下发自动开关指令给硬件（成功后再记 PENDING）
         if (!"NONE".equals(command) && device != null) {
-            mqttConfig.publishCommand(device.getDeviceSn(), command);
+            if (mqttConfig.publishCommand(device.getDeviceSn(), command)) {
+                String expected = command.endsWith("ON") ? "ON" : "OFF";
+                controlLogsService.recordPendingCommand(deviceId, command, "AUTO", expected);
+            } else {
+                log.warn("自动开关指令 MQTT 下发失败: deviceSn={} command={}", device.getDeviceSn(), command);
+            }
         }
 
         return command;
@@ -182,15 +251,18 @@ public class LightReadingsServiceImpl extends ServiceImpl<LightReadingsMapper, L
             return "NONE";
         }
 
-        // 获取阈值配置
-        ThresholdConfig config = thresholdConfigMapper.selectById(1L);
-        if (config == null) {
-            log.warn("自动开关判定：阈值配置不存在");
+        // 手动模式：不跟随光照自动开关（需前端点「恢复自动」）
+        if ("MANUAL".equals(device.getControlMode())) {
+            log.debug("自动开关跳过: 设备 {} 处于 MANUAL 模式", deviceId);
             return "NONE";
         }
 
-        BigDecimal thresholdOn = config.getLightThresholdOn();
-        BigDecimal thresholdOff = config.getLightThresholdOff();
+        // 获取生效阈值（设备覆盖 > 编组覆盖 > 全局）
+        EffectiveThresholdVO effective = thresholdConfigService.resolveEffective(deviceId);
+        BigDecimal thresholdOn = effective.getLightThresholdOn();
+        BigDecimal thresholdOff = effective.getLightThresholdOff();
+        log.debug("自动开关阈值来源={} key={} on={} off={}",
+                effective.getSource(), effective.getSourceKey(), thresholdOn, thresholdOff);
 
         String currentStatus = device.getStatus();
         String targetStatus = null;
@@ -215,9 +287,6 @@ public class LightReadingsServiceImpl extends ServiceImpl<LightReadingsMapper, L
         String oldStatus = currentStatus;
         device.setStatus(targetStatus);
         devicesMapper.updateById(device);
-
-        // 记录控制日志（自动控制）
-        controlLogsService.recordLog(deviceId, command, "SUCCESS", "AUTO");
 
         log.info("自动开关: 设备 {} 光照={}, {} → {}", deviceId, lightIntensity, oldStatus, targetStatus);
 

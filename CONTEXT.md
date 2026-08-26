@@ -21,7 +21,7 @@ BearPi / 传感器上报光照与状态 → MQTT/HTTP → Spring Boot 规则（�
 | deviceSn | 设备序列号；MQTT 主题键 `smart-light/{deviceSn}/…` |
 | status | 灯开关：`ON` / `OFF` |
 | onlineStatus | `ONLINE` / `OFFLINE`（心跳/光照隐式刷新） |
-| 阈值 | `lightThresholdOn` / `lightThresholdOff` / `heartbeatTimeout` |
+| 阈值 | `lightThresholdOn` / `lightThresholdOff` / `heartbeatTimeout`（Web「阈值」页可改） |
 | 确定层 | 阈值与心跳规则产生的自动开关、离线告警 |
 | token | JWT；HTTP Header 名 `token`；成功 `code=200` |
 
@@ -30,7 +30,7 @@ BearPi / 传感器上报光照与状态 → MQTT/HTTP → Spring Boot 规则（�
 | 标识 | 说明 |
 |------|------|
 | `MUNICIPAL_STAFF` | 市政人员（默认注册角色） |
-| `ADMIN` | 路灯管理员（阈值等） |
+| `ADMIN` | 路灯管理员 |
 
 ## 仓库与路径
 
@@ -41,14 +41,20 @@ BearPi / 传感器上报光照与状态 → MQTT/HTTP → Spring Boot 规则（�
 | `firmware/` | 板端说明 / junction（勿整树提交） |
 | `docs/collab/` | 跨部门协作（路灯） |
 | `docs/contracts/` | 契约索引（指向 API 文档） |
-| `docs/agents/` | Handoff |
-| `.cursor/skills/` | Agent skills |
+| `docs/agents/` | Handoff（入口 `HANDOFF-LATEST.md`） |
+| `smart-street-light-master/LOCAL-RUN.md` | **本地** Docker + jar 启动 |
+| `docs/collab/TEAM-ONBOARDING.md` | **组员上手**：少重复配置 |
+| `scripts/team-bootstrap.ps1` | 一键复制模板 + 起 Docker/后端 |
+| `README.md` | 仓库入口 |
+| `quickstart.md` | **规矩 + 重要指令（组员首读）** |
 
 ## Git / 协作
 
-- 上游：`xikunn/wuliu`；fork：`Someone-hates-Monday/wuliu`  
-- PR 流程；署名：`Someone-hates-Monday <2872397866@qq.com>`  
-- GitHub：**SSH 可用**（HTTPS:443 常不通）
+- 仓库：https://github.com/xikunn/wuliu （合作者可直接 push / 合 PR）  
+- 组员首读：`quickstart.md` → `README.md` → `docs/collab/TEAM-ONBOARDING.md`  
+- clone：`git clone https://github.com/xikunn/wuliu.git`  
+- 同步：`git checkout main` → `git pull origin main`  
+- GitHub 若 HTTPS 不通可用 SSH：`git@github.com:xikunn/wuliu.git`
 
 ## 硬约束
 

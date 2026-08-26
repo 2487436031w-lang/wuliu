@@ -3,7 +3,8 @@ import { onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useRealtimeStore } from '../stores/realtime'
-import { isMockMode } from '../api/client'
+import { isMockMode } from '../config/runtime'
+import BrandIcon from '../components/BrandIcon.vue'
 
 const auth = useAuthStore()
 const realtime = useRealtimeStore()
@@ -11,12 +12,12 @@ const route = useRoute()
 const router = useRouter()
 
 const nav = [
-  { to: '/dashboard', label: '总览' },
-  { to: '/devices', label: '设备' },
-  { to: '/lights', label: '光照' },
-  { to: '/alarms', label: '告警' },
-  { to: '/threshold', label: '阈值', admin: true },
-  { to: '/logs', label: '控制日志' },
+  { to: '/dashboard', label: '总览', icon: '◉' },
+  { to: '/devices', label: '设备', icon: '◎' },
+  { to: '/lights', label: '光照', icon: '☀' },
+  { to: '/alarms', label: '告警', icon: '⚠' },
+  { to: '/threshold', label: '阈值', icon: '⚙' },
+  { to: '/logs', label: '控制日志', icon: '≡' },
 ]
 
 onMounted(() => realtime.connect())
@@ -32,56 +33,70 @@ async function onLogout() {
   <div class="shell">
     <aside class="rail">
       <div class="brand">
-        <p class="mark">灯廊</p>
-        <p class="sub">智慧路灯控制台</p>
+        <div class="brand-icon">
+          <BrandIcon :size="22" />
+        </div>
+        <div>
+          <p class="mark">灯廊</p>
+          <p class="sub">智慧路灯控制台</p>
+        </div>
       </div>
-      <nav>
+
+      <nav class="nav">
         <RouterLink
-          v-for="item in nav.filter((n) => !n.admin || auth.isAdmin)"
+          v-for="item in nav"
           :key="item.to"
           :to="item.to"
           class="nav-link"
         >
+          <span class="nav-icon">{{ item.icon }}</span>
           {{ item.label }}
         </RouterLink>
       </nav>
+
       <div class="foot">
-        <p class="who">
-          {{ auth.session?.username }}
-          <strong>{{ auth.roleLabel }}</strong>
+        <div class="user-card">
+          <p class="who">{{ auth.session?.username }}</p>
+          <p class="role">{{ auth.roleLabel }}</p>
+        </div>
+        <p class="mode mono">
+          {{ isMockMode ? 'Mock' : 'HTTP' }} · {{ realtime.connected ? 'Live' : 'Off' }}
         </p>
-        <p class="mode mono">{{ isMockMode ? 'MOCK' : 'HTTP' }} · {{ realtime.connected ? 'LIVE' : 'OFF' }}</p>
-        <button type="button" class="ghost" @click="onLogout">退出登录</button>
+        <button type="button" class="logout-btn" @click="onLogout">退出登录</button>
       </div>
     </aside>
 
     <div class="main">
       <header class="top">
-        <div>
-          <p class="eyebrow mono">{{ route.meta.title }}</p>
+        <div class="top-text">
           <h1>{{ route.meta.title }}</h1>
+          <p class="subtitle">{{ route.meta.title }} · 灯廊管理平台</p>
         </div>
-        <div class="lamp" :data-on="realtime.connected">
-          <span class="bulb" />
+        <div class="status-pill" :data-on="realtime.connected">
+          <span class="dot" />
           实时链路
         </div>
       </header>
+
       <main class="content">
-        <RouterView v-slot="{ Component }">
-          <Transition name="fade" mode="out-in">
-            <component :is="Component" />
-          </Transition>
-        </RouterView>
+        <div class="content-body">
+          <RouterView v-slot="{ Component }">
+            <Transition name="fade" mode="out-in">
+              <component :is="Component" />
+            </Transition>
+          </RouterView>
+        </div>
       </main>
     </div>
 
     <Transition name="fade">
       <div v-if="realtime.latestAlarm" class="toast" role="alert">
-        <div>
+        <div class="toast-icon">!</div>
+        <div class="toast-body">
           <strong>新告警</strong>
           <p>{{ realtime.latestAlarm.deviceName }} · {{ realtime.latestAlarm.message }}</p>
         </div>
-        <button type="button" @click="realtime.clearAlarmToast()">关闭</button>
+        <button type="button" class="toast-close" @click="realtime.clearAlarmToast()">关闭</button>
       </div>
     </Transition>
   </div>
@@ -91,154 +106,363 @@ async function onLogout() {
 .shell {
   display: grid;
   grid-template-columns: var(--rail) 1fr;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
+
 .rail {
   display: flex;
   flex-direction: column;
-  padding: 26px 16px;
-  background: linear-gradient(180deg, #121820 0%, #1c2733 100%);
-  color: #f2f4f7;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--space-6) var(--space-4);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-right: 1px solid var(--line);
 }
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-8);
+  padding: 0 var(--space-2);
+}
+
+.brand-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background: linear-gradient(145deg, var(--sodium) 0%, #ffcc00 100%);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(255, 149, 0, 0.35);
+}
+
 .mark {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: 44px;
-  line-height: 0.9;
-  color: var(--sodium);
-  letter-spacing: 0.12em;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+  color: var(--ink);
 }
+
 .sub {
-  margin: 8px 0 24px;
-  font-size: 13px;
+  margin: 2px 0 0;
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast);
+}
+
+.nav-icon {
+  width: 20px;
+  text-align: center;
+  font-size: 14px;
   opacity: 0.7;
 }
-.nav-link {
-  display: block;
-  padding: 10px 12px;
-  margin-bottom: 4px;
-  border-radius: var(--radius);
-  color: rgba(242, 244, 247, 0.75);
+
+.nav-link:hover {
+  background: var(--paper);
+  color: var(--ink);
 }
-.nav-link:hover,
+
 .nav-link.router-link-active {
-  background: rgba(240, 162, 2, 0.16);
-  color: #fff;
+  background: var(--accent-soft);
+  color: var(--accent);
 }
+
+.nav-link.router-link-active .nav-icon {
+  opacity: 1;
+}
+
 .foot {
   margin-top: auto;
   display: grid;
-  gap: 8px;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-2) 0;
 }
+
+.user-card {
+  padding: var(--space-3);
+  background: var(--paper);
+  border-radius: var(--radius-sm);
+}
+
 .who {
   margin: 0;
-  font-size: 13px;
-  display: grid;
-  gap: 2px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
 }
-.who strong {
-  color: var(--sodium);
+
+.role {
+  margin: 2px 0 0;
+  font-size: var(--text-xs);
+  color: var(--accent);
+  font-weight: 500;
 }
+
 .mode {
   margin: 0;
-  font-size: 11px;
-  opacity: 0.55;
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  padding: 0 var(--space-2);
 }
-.ghost {
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: transparent;
-  color: #fff;
-  padding: 8px;
-  border-radius: var(--radius);
+
+.logout-btn {
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  padding: 9px var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--ink-soft);
   cursor: pointer;
+  transition:
+    background var(--duration-fast),
+    color var(--duration-fast);
 }
+
+.logout-btn:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
 .main {
   min-width: 0;
+  height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
+
 .top {
   display: flex;
   justify-content: space-between;
-  align-items: end;
-  padding: 26px 28px 10px;
+  align-items: center;
+  padding: var(--space-8) var(--page-pad) var(--space-4);
+  flex-shrink: 0;
 }
-.eyebrow {
-  margin: 0 0 4px;
-  color: var(--ink-soft);
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+
+.top-text h1 {
+  font-size: var(--text-3xl);
+  font-weight: 700;
 }
-.top h1 {
-  font-size: 32px;
-  font-weight: 600;
+
+.subtitle {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
 }
-.lamp {
+
+.status-pill {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border: 1px solid var(--line);
+  gap: var(--space-2);
+  padding: 8px 14px;
   background: var(--panel);
-  border-radius: 999px;
-  font-size: 13px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink-soft);
+  box-shadow: var(--shadow-sm), var(--shadow-inset);
 }
-.bulb {
-  width: 10px;
-  height: 10px;
+
+.dot {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--offline);
+  transition: background var(--duration-normal), box-shadow var(--duration-normal);
 }
-.lamp[data-on='true'] .bulb {
-  background: var(--sodium);
-  box-shadow: 0 0 10px var(--sodium);
+
+.status-pill[data-on='true'] .dot {
+  background: var(--online);
+  box-shadow: 0 0 8px rgba(52, 199, 89, 0.5);
 }
+
 .content {
-  padding: 8px 28px 28px;
-  flex: 1;
+  padding: 0 var(--page-pad) calc(var(--space-5) + var(--shadow-bleed));
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
+
+.content-body {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.content-body:has(.ui-page-fill) {
+  overflow: hidden;
+}
+
+.content-body :deep(.ui-page-fill) {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
 .toast {
   position: fixed;
-  right: 20px;
-  bottom: 20px;
+  right: var(--space-6);
+  bottom: var(--space-6);
   z-index: 50;
   display: flex;
-  gap: 14px;
+  gap: var(--space-3);
   align-items: center;
-  max-width: 360px;
-  padding: 14px;
-  background: #121820;
-  color: #fff;
-  border-left: 4px solid var(--danger);
-  box-shadow: var(--shadow);
+  max-width: 380px;
+  padding: var(--space-4);
+  background: var(--panel);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  animation: toast-in var(--duration-slow) var(--ease-spring) both;
 }
-.toast p {
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.toast-icon {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-weight: 700;
+  font-size: var(--text-lg);
+}
+
+.toast-body strong {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.toast-body p {
   margin: 4px 0 0;
-  font-size: 13px;
-  opacity: 0.85;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  line-height: var(--leading-normal);
 }
-.toast button {
-  border: 0;
-  background: var(--sodium);
-  color: #121820;
-  padding: 8px 10px;
+
+.toast-close {
+  flex-shrink: 0;
+  border: none;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 500;
   cursor: pointer;
+  transition: background var(--duration-fast);
 }
+
+.toast-close:hover {
+  background: var(--line-strong);
+}
+
 @media (max-width: 840px) {
   .shell {
     grid-template-columns: 1fr;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
   }
+
   .rail {
+    height: auto;
+    max-height: none;
     flex-direction: row;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--space-2);
+    padding: var(--space-4);
   }
+
+  .main {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .content {
+    overflow: visible;
+  }
+
+  .content-body {
+    overflow: visible;
+  }
+
   .brand {
     width: 100%;
+    margin-bottom: var(--space-3);
   }
+
+  .nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
   .foot {
     width: 100%;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+
+  .top {
+    padding: var(--space-5) var(--space-4) var(--space-3);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  .content {
+    padding: 0 var(--page-pad) var(--space-5);
   }
 }
 </style>

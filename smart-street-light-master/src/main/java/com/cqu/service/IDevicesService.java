@@ -60,11 +60,35 @@ public interface IDevicesService extends IService<Devices> {
     void updateHeartbeat(Long deviceId);
 
     /**
-     * 手动开关灯控制（前端下发 → 后端 → 硬件，硬件通知通道预留）
+     * 手动开关灯控制（进入 MANUAL 模式，忽略光照自动开关）
      *
      * @param deviceId 设备ID
      * @param status   目标开关状态：ON / OFF
      * @return 下发给硬件的指令：MANUAL_ON / MANUAL_OFF
      */
     String switchDevice(Long deviceId, String status);
+
+    /**
+     * 设置控制模式：AUTO 恢复阈值联动；MANUAL 手动锁定
+     */
+    void setControlMode(Long deviceId, String mode);
+
+    /**
+     * 设置设备编组；groupName 为空则移出分组
+     */
+    void setDeviceGroup(Long deviceId, String groupName);
+
+    /**
+     * 组内统一开关（进入 MANUAL）
+     *
+     * @return 成功下发的设备数量
+     */
+    int switchGroup(String groupName, String status);
+
+    /**
+     * 组内统一设置控制模式
+     *
+     * @return 受影响设备数量
+     */
+    int setGroupControlMode(String groupName, String mode);
 }
