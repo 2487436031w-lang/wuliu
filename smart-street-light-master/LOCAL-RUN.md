@@ -55,4 +55,6 @@ npm run dev
 
 登录 `admin` / `admin123`（来自 `sql/test-data.sql`）。
 
+已有旧库时，重启后端会自动补演示路灯坐标；前端也会按设备 SN 兜底显示。
+
 EMQX 控制台：http://localhost:18083（默认 admin/public）。

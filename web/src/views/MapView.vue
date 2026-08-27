@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { api } from '../api/client'
+import { resolveLampLocation } from '../config/lampLocations'
 import { useRealtimeStore } from '../stores/realtime'
 import type { Device } from '../types/domain'
 
@@ -26,9 +27,15 @@ function hasLocation(d: Device): boolean {
   return d.latitude != null && d.longitude != null
 }
 
-const located = computed(() => records.value.filter(hasLocation))
-const unlocated = computed(() => records.value.filter((d) => !hasLocation(d)))
-const selected = computed(() => records.value.find((d) => d.id === selectedId.value) ?? null)
+function withLocation(d: Device): Device {
+  const loc = resolveLampLocation(d.deviceSn, d.latitude, d.longitude)
+  return { ...d, latitude: loc.latitude, longitude: loc.longitude }
+}
+
+const plotRecords = computed(() => records.value.map(withLocation))
+const located = computed(() => plotRecords.value.filter(hasLocation))
+const unlocated = computed(() => plotRecords.value.filter((d) => !hasLocation(d)))
+const selected = computed(() => plotRecords.value.find((d) => d.id === selectedId.value) ?? null)
 const pinTarget = computed(() => records.value.find((d) => d.id === pinTargetId.value) ?? null)
 
 function lampClass(d: Device): string {

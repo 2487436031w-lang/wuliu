@@ -24,4 +24,11 @@ docker exec streetlight-pg sh -c "grep -v '^CREATE DATABASE' /tmp/schema.sql | p
 Write-Host "Loading test data..."
 docker exec streetlight-pg psql -U postgres -d smart-street-light -v ON_ERROR_STOP=1 -f /tmp/test-data.sql
 
+$Migrations = Join-Path $Root "sql\migrations"
+Get-ChildItem $Migrations -Filter "*.sql" -ErrorAction SilentlyContinue | Sort-Object Name | ForEach-Object {
+  Write-Host "Applying migration $($_.Name)..."
+  docker cp $_.FullName "streetlight-pg:/tmp/$($_.Name)"
+  docker exec streetlight-pg psql -U postgres -d smart-street-light -v ON_ERROR_STOP=1 -f "/tmp/$($_.Name)"
+}
+
 Write-Host "Done. Test login: admin / admin123"
