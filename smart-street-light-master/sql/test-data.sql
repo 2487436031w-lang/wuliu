@@ -56,10 +56,10 @@ INSERT INTO devices (
     ('解放大道东段灯', 'SN-JF-001', 'ON',  'ONLINE',  'MANUAL', '解放大道',
      29.56620, 106.46860,
      CURRENT_TIMESTAMP - INTERVAL '40 seconds', CURRENT_TIMESTAMP - INTERVAL '18 days'),
-    -- 解放大道：离线（应有 ACTIVE OFFLINE 告警）
-    ('解放大道西段灯', 'SN-JF-002', 'OFF', 'OFFLINE', 'AUTO', '解放大道',
+    -- 解放大道模拟：在线（7 盏 mock 默认均 ONLINE；真机位 SN-RM-001 仍 OFFLINE）
+    ('解放大道西段灯', 'SN-JF-002', 'OFF', 'ONLINE', 'AUTO', '解放大道',
      29.56640, 106.46950,
-     CURRENT_TIMESTAMP - INTERVAL '3 hours', CURRENT_TIMESTAMP - INTERVAL '15 days'),
+     CURRENT_TIMESTAMP - INTERVAL '35 seconds', CURRENT_TIMESTAMP - INTERVAL '15 days'),
     -- 滨江：在线关灯
     ('滨江步道A灯', 'SN-BJ-001', 'OFF', 'ONLINE',  'AUTO', '滨江路',
      29.56350, 106.46780,
@@ -77,7 +77,7 @@ INSERT INTO devices (
 -- 3. 阈值（开灯 <30，关灯 >80，心跳 180s）
 -- ============================================================
 INSERT INTO threshold_config (light_threshold_on, light_threshold_off, heartbeat_timeout)
-VALUES (30, 80, 180);
+VALUES (30, 80, 60);
 
 -- ============================================================
 -- 4. 光照时序（近 3 天，每 30 分钟一点）
@@ -205,8 +205,8 @@ INSERT INTO control_logs (
 -- ============================================================
 INSERT INTO alarm_logs (device_id, alarm_type, message, status, created_at, resolved_at) VALUES
     (5, 'OFFLINE',
-     '设备解放大道西段灯心跳超时，已自动标记为离线',
-     'ACTIVE', CURRENT_TIMESTAMP - INTERVAL '2 hours 50 minutes', NULL),
+     '设备解放大道西段灯历史心跳超时（已恢复在线）',
+     'RESOLVED', CURRENT_TIMESTAMP - INTERVAL '2 days', CURRENT_TIMESTAMP - INTERVAL '2 days' + INTERVAL '40 minutes'),
     (1, 'OFFLINE',
      '设备人民路001号路灯心跳超时，已自动标记为离线',
      'ACTIVE', CURRENT_TIMESTAMP - INTERVAL '100 minutes', NULL),

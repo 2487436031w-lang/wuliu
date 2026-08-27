@@ -49,7 +49,9 @@ public class HeartbeatCheckTask {
             return;
         }
         int timeoutSeconds = config.getHeartbeatTimeout();
-        LocalDateTime deadline = LocalDateTime.now().minusSeconds(timeoutSeconds);
+        // 与 JDBC timestamp(无时区) 约定：统一用上海本地墙钟，避免 PG 容器 UTC NOW 与 JVM 差 8h 误判离线
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai"));
+        LocalDateTime deadline = now.minusSeconds(timeoutSeconds);
 
         // 查询所有在线设备
         List<Devices> onlineDevices = devicesMapper.selectList(
@@ -77,7 +79,7 @@ public class HeartbeatCheckTask {
                 data.put("lastHeartbeatTime", device.getLastHeartbeatTime());
                 WebSocketMessage msg = WebSocketMessage.builder()
                         .type("DEVICE_ONLINE_STATUS_CHANGED")
-                        .timestamp(LocalDateTime.now())
+                        .timestamp(now)
                         .data(data)
                         .build();
                 log.info("WebSocket 推送 → /topic/device-online: 设备 {} ({}) 离线（心跳超时 {}秒）", device.getId(), device.getDeviceName(), timeoutSeconds);

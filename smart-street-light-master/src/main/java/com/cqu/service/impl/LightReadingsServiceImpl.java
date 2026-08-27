@@ -184,7 +184,7 @@ public class LightReadingsServiceImpl extends ServiceImpl<LightReadingsMapper, L
         if (device != null) {
             boolean wasOffline = !"ONLINE".equals(device.getOnlineStatus());
             device.setOnlineStatus("ONLINE");
-            device.setLastHeartbeatTime(LocalDateTime.now());
+            device.setLastHeartbeatTime(LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai")));
             devicesMapper.updateById(device);
 
             if (wasOffline) {
