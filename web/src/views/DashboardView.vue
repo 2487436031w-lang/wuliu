@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { api, isMockMode } from '../api/client'
 import { useRealtimeStore } from '../stores/realtime'
+import StreetlightMap from '../components/StreetlightMap.vue'
 import type { AlarmStatistics, Device, DeviceStatistics, ThresholdConfig } from '../types/domain'
 
 const realtime = useRealtimeStore()
@@ -93,106 +94,108 @@ const tiles = computed(() => {
       to: '/devices',
       query: { status: 'OFF' },
     },
+    {
+      label: '待处理告警',
+      value: alarmStats.value?.activeCount ?? 0,
+      to: '/alarms',
+      query: { status: 'ACTIVE' },
+      tone: 'bad',
+    },
   ]
 })
-
-const alarmTile = computed(() => ({
-  label: '待处理告警',
-  value: alarmStats.value?.activeCount ?? 0,
-}))
 </script>
 
 <template>
   <div class="ui-page ui-page-fill dashboard-page">
-    <RouterLink to="/lights" class="hero page-hero ui-link-card slide-up-enter-active">
-      <div class="hero-main">
-        <p class="eyebrow">实时光照 · 点击查看趋势</p>
-        <p class="hero-value mono">
+    <div class="dash-top slide-up-enter-active">
+      <RouterLink to="/lights" class="lux-chip ui-link-card">
+        <p class="lux-label">实时光照</p>
+        <p class="lux-value mono">
           {{ realtime.latestLight ? realtime.latestLight.lightIntensity.toFixed(1) : '—' }}
           <span class="unit">lux</span>
         </p>
-        <p class="hero-meta mono">{{ isMockMode ? 'Mock 定时模拟' : '后端 WebSocket' }}</p>
-      </div>
-      <div class="hero-side">
-        <p class="threshold-hint">
-          开灯 &lt; {{ threshold?.lightThresholdOn ?? '—' }} lux<br />
-          关灯 &gt; {{ threshold?.lightThresholdOff ?? '—' }} lux
+        <p class="lux-meta mono">
+          {{ isMockMode ? 'Mock' : 'Live' }}
+          · 开 &lt; {{ threshold?.lightThresholdOn ?? '—' }}
+          · 关 &gt; {{ threshold?.lightThresholdOff ?? '—' }}
         </p>
-        <RouterLink to="/threshold" class="hero-link" @click.stop>修改阈值 →</RouterLink>
-      </div>
-    </RouterLink>
-
-    <div v-if="stats" class="ui-fill-body dashboard-body slide-up-enter-active slide-up-delay-1">
-      <section class="ops ui-card">
-        <h3 class="ui-section-title">值班待办</h3>
-        <div class="ops-grid">
-          <RouterLink
-            :to="{ path: '/alarms', query: { status: 'ACTIVE' } }"
-            class="ops-item ui-link-card"
-          >
-            <p class="ops-label">活跃告警</p>
-            <strong class="ui-stat-value bad">{{ alarmTile.value }}</strong>
-          </RouterLink>
-
-          <div class="ops-item">
-            <p class="ops-label">今日自动开关</p>
-            <strong class="ui-stat-value on">{{ autoSwitchToday }}</strong>
-            <RouterLink to="/logs" class="ops-link">控制日志 →</RouterLink>
-          </div>
-
-          <div class="ops-item ops-item-list">
-            <p class="ops-label">离线设备（{{ offlineDevices.length }}）</p>
-            <div class="offline-panel">
-              <ul v-if="offlineDevices.length" class="offline-list">
-                <li v-for="d in offlineDevices" :key="d.id">
-                  <RouterLink :to="`/devices`">{{ d.deviceName }}</RouterLink>
-                  <span class="mono sn">{{ d.deviceSn }}</span>
-                </li>
-              </ul>
-              <p v-else class="ops-empty">全部在线 ✓</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <div class="stat-grid">
+      </RouterLink>
+      <div class="kpi-row">
         <RouterLink
           v-for="tile in tiles"
           :key="tile.label"
           :to="{ path: tile.to, query: tile.query }"
-          class="stat ui-card ui-card-compact ui-link-card"
+          class="kpi ui-link-card"
         >
-          <p class="stat-label">{{ tile.label }}</p>
+          <p class="kpi-label">{{ tile.label }}</p>
           <strong :class="['ui-stat-value', tile.tone]">{{ tile.value }}</strong>
-        </RouterLink>
-
-        <RouterLink
-          :to="{ path: '/alarms', query: { status: 'ACTIVE' } }"
-          class="stat ui-card ui-card-compact ui-link-card"
-        >
-          <p class="stat-label">{{ alarmTile.label }}</p>
-          <strong class="ui-stat-value bad">{{ alarmTile.value }}</strong>
         </RouterLink>
       </div>
     </div>
+
+    <section class="dash-map slide-up-enter-active slide-up-delay-1">
+      <StreetlightMap variant="embed" />
+    </section>
+
+    <section class="ops ui-card dash-ops slide-up-enter-active slide-up-delay-2">
+      <h3 class="ui-section-title">值班待办</h3>
+      <div class="ops-grid">
+        <RouterLink
+          :to="{ path: '/alarms', query: { status: 'ACTIVE' } }"
+          class="ops-item ui-link-card"
+        >
+          <p class="ops-label">活跃告警</p>
+          <strong class="ui-stat-value bad">{{ alarmStats?.activeCount ?? 0 }}</strong>
+        </RouterLink>
+
+        <div class="ops-item">
+          <p class="ops-label">今日自动开关</p>
+          <strong class="ui-stat-value on">{{ autoSwitchToday }}</strong>
+          <RouterLink to="/logs" class="ops-link">控制日志 →</RouterLink>
+        </div>
+
+        <div class="ops-item ops-item-list">
+          <p class="ops-label">离线设备（{{ offlineDevices.length }}）</p>
+          <div class="offline-panel">
+            <ul v-if="offlineDevices.length" class="offline-list">
+              <li v-for="d in offlineDevices" :key="d.id">
+                <RouterLink to="/devices">{{ d.deviceName }}</RouterLink>
+                <span class="mono sn">{{ d.deviceSn }}</span>
+              </li>
+            </ul>
+            <p v-else class="ops-empty">全部在线 ✓</p>
+          </div>
+        </div>
+      </div>
+    </section>
   </div>
 </template>
 
 <style scoped>
-.hero {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: var(--space-6);
-  padding: var(--space-6) var(--space-8);
-  background: linear-gradient(135deg, #1d1d1f 0%, #2c2c2e 100%);
-  color: #f5f5f7;
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
-  text-decoration: none;
+.dashboard-page {
+  gap: var(--space-3);
 }
 
-.eyebrow {
+.dash-top {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) 1fr;
+  gap: var(--space-3);
+}
+
+.lux-chip {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, #1d1d1f 0%, #2c2c2e 100%);
+  color: #f5f5f7;
+  text-decoration: none;
+  box-shadow: var(--shadow);
+}
+
+.lux-label {
   margin: 0;
   font-size: var(--text-xs);
   font-weight: 600;
@@ -201,58 +204,68 @@ const alarmTile = computed(() => ({
   color: rgba(255, 255, 255, 0.55);
 }
 
-.hero-value {
-  margin: var(--space-2) 0 0;
-  font-size: clamp(36px, 5vw, 56px);
+.lux-value {
+  margin: 4px 0 0;
+  font-size: 28px;
   font-weight: 600;
   color: var(--sodium);
-  line-height: 1;
-  letter-spacing: -0.03em;
+  line-height: 1.1;
 }
 
 .unit {
-  font-size: var(--text-xl);
-  margin-left: var(--space-2);
+  font-size: var(--text-sm);
+  margin-left: 4px;
   opacity: 0.65;
-  font-weight: 500;
 }
 
-.hero-meta {
-  margin: var(--space-2) 0 0;
-  font-size: var(--text-xs);
-  color: rgba(255, 255, 255, 0.4);
+.lux-meta {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
 }
 
-.hero-side {
-  text-align: right;
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-2);
 }
 
-.threshold-hint {
-  margin: 0;
-  font-size: var(--text-sm);
-  line-height: 1.6;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.hero-link {
-  display: inline-block;
-  margin-top: var(--space-3);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--sodium);
+.kpi {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  box-shadow: var(--shadow-sm), var(--shadow-inset);
   text-decoration: none;
+  color: inherit;
 }
 
-.dashboard-body {
+.kpi-label {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.kpi .ui-stat-value {
+  margin-top: 2px;
+  font-size: var(--text-xl);
+}
+
+.dash-map {
+  flex: 1 1 0;
   min-height: 0;
+  display: flex;
 }
 
-.dashboard-body .ops {
+.dash-ops {
   flex-shrink: 0;
 }
 
-.dashboard-body .stat-grid {
-  flex-shrink: 0;
+.dash-ops .ui-section-title {
+  margin-bottom: var(--space-2);
 }
 
 .ops-grid {
@@ -262,7 +275,7 @@ const alarmTile = computed(() => ({
 }
 
 .ops-item {
-  padding: var(--space-4);
+  padding: var(--space-3) var(--space-4);
   background: var(--paper);
   border-radius: var(--radius-md);
   display: block;
@@ -286,12 +299,12 @@ const alarmTile = computed(() => ({
 
 .ops-item .ui-stat-value {
   display: block;
-  margin-top: var(--space-2);
+  margin-top: var(--space-1);
 }
 
 .ops-link {
   display: inline-block;
-  margin-top: var(--space-2);
+  margin-top: var(--space-1);
   font-size: var(--text-xs);
   font-weight: 500;
   color: var(--accent);
@@ -301,8 +314,8 @@ const alarmTile = computed(() => ({
 .offline-panel {
   flex: 1 1 0;
   min-height: 0;
-  max-height: min(160px, 24vh);
-  margin-top: var(--space-2);
+  max-height: 72px;
+  margin-top: var(--space-1);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -317,7 +330,7 @@ const alarmTile = computed(() => ({
   display: flex;
   justify-content: space-between;
   gap: var(--space-2);
-  padding: var(--space-2) 0;
+  padding: 4px 0;
   font-size: var(--text-sm);
   border-bottom: 1px solid var(--line);
 }
@@ -338,49 +351,24 @@ const alarmTile = computed(() => ({
 }
 
 .ops-empty {
-  margin: var(--space-2) 0 0;
+  margin: var(--space-1) 0 0;
   font-size: var(--text-sm);
   color: var(--online);
   font-weight: 500;
 }
 
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-3);
-  flex-shrink: 0;
-}
+@media (max-width: 1100px) {
+  .dash-top {
+    grid-template-columns: 1fr;
+  }
 
-.stat {
-  display: block;
-  text-decoration: none;
-  color: inherit;
-}
-
-.stat-label {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--ink-soft);
-  font-weight: 500;
-}
-
-.stat .ui-stat-value {
-  display: block;
-  margin-top: var(--space-2);
+  .kpi-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 @media (max-width: 800px) {
-  .hero {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: var(--space-5);
-  }
-
-  .hero-side {
-    text-align: left;
-  }
-
-  .stat-grid,
+  .kpi-row,
   .ops-grid {
     grid-template-columns: 1fr 1fr;
   }

@@ -32,14 +32,14 @@ public class DeviceLocationInitializer implements ApplicationRunner {
     private static final Map<String, BigDecimal[]> DEMO = new LinkedHashMap<>();
 
     static {
-        DEMO.put("SN-RM-001", coords("29.56470", "106.46740"));
-        DEMO.put("SN-RM-002", coords("29.56485", "106.46820"));
-        DEMO.put("SN-RM-003", coords("29.56500", "106.46900"));
-        DEMO.put("SN-JF-001", coords("29.56620", "106.46860"));
-        DEMO.put("SN-JF-002", coords("29.56640", "106.46950"));
-        DEMO.put("SN-BJ-001", coords("29.56350", "106.46780"));
-        DEMO.put("SN-BJ-002", coords("29.56330", "106.46870"));
-        DEMO.put("SN-XQ-001", coords("29.56540", "106.46980"));
+        DEMO.put("SN-RM-001", coords("29.56380", "106.46120"));
+        DEMO.put("SN-RM-002", coords("29.56470", "106.46740"));
+        DEMO.put("SN-RM-003", coords("29.56560", "106.47380"));
+        DEMO.put("SN-JF-001", coords("29.56960", "106.46400"));
+        DEMO.put("SN-JF-002", coords("29.57180", "106.47020"));
+        DEMO.put("SN-BJ-001", coords("29.55640", "106.46550"));
+        DEMO.put("SN-BJ-002", coords("29.55780", "106.47400"));
+        DEMO.put("SN-XQ-001", coords("29.56880", "106.46680"));
     }
 
     private static BigDecimal[] coords(String lat, String lng) {
