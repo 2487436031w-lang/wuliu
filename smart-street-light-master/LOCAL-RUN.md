@@ -7,13 +7,17 @@ cd smart-street-light-master
 powershell -ExecutionPolicy Bypass -File scripts\run-local.ps1
 ```
 
-包含：Docker(PG:5433 + EMQX:1883) → 建库 → Docker Maven 编译 → 启动 `:8080`。
+包含：Docker(PG:5433 + EMQX:1883) → 建库 → **7 盏模拟灯 fleet-sim** → Docker Maven 编译 → 启动 `:8080`。
 
 ## 分步
 
 ```powershell
 docker compose up -d
 powershell -ExecutionPolicy Bypass -File scripts\init-db.ps1
+
+# 7 盏模拟灯（SN-RM-002～SN-XQ-001）；真机 SN-RM-001 留给 BearPi
+powershell -ExecutionPolicy Bypass -File scripts\mqtt-simulate-fleet.ps1
+# 停止模拟：同上脚本加 -Stop
 
 # 编译（无需本机 Maven）
 docker run --rm -v "${PWD}:/app" -w /app maven:3.9-eclipse-temurin-21 mvn package -DskipTests
@@ -27,7 +31,10 @@ java -jar target/smart-street-light-0.0.1-SNAPSHOT.jar --spring.profiles.active=
 | 文件 | 作用 |
 |------|------|
 | `docker-compose.yml` | PG `localhost:5433`，EMQX `1883` / 控制台 `18083` |
-| `application-local.yml` | 本地 DB/MQTT 地址（不改远程 `application.yml`） |
+| `application-local.yml` | 本地 DB/MQTT；`mock-keepalive: false`（勿与 fleet-sim 双开） |
+
+**在线/离线：** 真机与模拟灯均靠 MQTT 光照/status 刷新心跳；断电后约 **心跳超时秒数**（默认 180s）内判离线。仅在不跑 fleet-sim 时可设 `streetlight.demo.mock-keepalive: true` 作兜底。
+
 | `application-secret.yml` | 密码/JWT（已 gitignore，本地自建） |
 
 ## 验收

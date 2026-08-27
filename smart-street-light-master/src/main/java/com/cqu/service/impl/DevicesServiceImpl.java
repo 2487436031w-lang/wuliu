@@ -241,7 +241,7 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
         boolean wasOffline = !"ONLINE".equals(device.getOnlineStatus());
 
         device.setOnlineStatus("ONLINE");
-        device.setLastHeartbeatTime(LocalDateTime.now());
+        device.setLastHeartbeatTime(LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai")));
         this.updateById(device);
 
         // 超时离线检测已由 HeartbeatCheckTask 定时任务实现（每30秒扫描）

@@ -126,6 +126,16 @@ public class AlarmLogsServiceImpl extends ServiceImpl<AlarmLogsMapper, AlarmLogs
             throw new RuntimeException("设备ID和告警类型不能为空");
         }
 
+        // 同设备同类型已有 ACTIVE 告警则不重复建（避免心跳抖动刷屏）
+        long activeSame = this.lambdaQuery()
+                .eq(AlarmLogs::getDeviceId, deviceId)
+                .eq(AlarmLogs::getAlarmType, alarmType)
+                .eq(AlarmLogs::getStatus, "ACTIVE")
+                .count();
+        if (activeSame > 0) {
+            return;
+        }
+
         AlarmLogs alarm = new AlarmLogs();
         alarm.setDeviceId(deviceId);
         alarm.setAlarmType(alarmType);
