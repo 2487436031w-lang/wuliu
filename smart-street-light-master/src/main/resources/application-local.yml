@@ -8,3 +8,9 @@ spring:
 mqtt:
   broker-url: tcp://127.0.0.1:1883
   client-id: smart-light-server-local
+
+# 模拟灯：优先用 Docker fleet-sim（mqtt-simulate-fleet.ps1）。
+# 仅在不跑 fleet 时改为 true，由 DemoMockKeepaliveTask 兜底（勿与 fleet 双开）。
+streetlight:
+  demo:
+    mock-keepalive: false

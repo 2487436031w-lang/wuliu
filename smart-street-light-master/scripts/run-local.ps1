@@ -21,6 +21,9 @@ docker compose up -d
 Start-Sleep -Seconds 6
 powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "init-db.ps1")
 
+# 7 盏模拟灯走 MQTT fleet（勿与 mock-keepalive 双开）；真机 SN-RM-001 留给 BearPi
+powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "mqtt-simulate-fleet.ps1")
+
 $profiles = "local,secret"
 Write-Host "Building with Docker Maven..."
 docker run --rm `
