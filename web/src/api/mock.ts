@@ -37,6 +37,8 @@ let devices: Device[] = [
     onlineStatus: 'OFFLINE',
     controlMode: 'AUTO',
     groupName: '人民路',
+    latitude: 29.5647,
+    longitude: 106.4674,
     expectedStatus: 'ON',
     statusMatch: false,
     lastHeartbeatTime: '2026-08-25 07:00:00',
@@ -50,6 +52,8 @@ let devices: Device[] = [
     onlineStatus: 'ONLINE',
     controlMode: 'AUTO',
     groupName: '人民路',
+    latitude: 29.56485,
+    longitude: 106.4682,
     expectedStatus: 'ON',
     statusMatch: true,
     lastHeartbeatTime: now(),
@@ -63,6 +67,8 @@ let devices: Device[] = [
     onlineStatus: 'ONLINE',
     controlMode: 'AUTO',
     groupName: '人民路',
+    latitude: 29.565,
+    longitude: 106.469,
     expectedStatus: 'OFF',
     statusMatch: true,
     lastHeartbeatTime: now(),
@@ -76,6 +82,8 @@ let devices: Device[] = [
     onlineStatus: 'ONLINE',
     controlMode: 'MANUAL',
     groupName: '解放大道',
+    latitude: 29.5662,
+    longitude: 106.4686,
     expectedStatus: 'ON',
     statusMatch: true,
     lastHeartbeatTime: now(),
@@ -89,6 +97,8 @@ let devices: Device[] = [
     onlineStatus: 'ONLINE',
     controlMode: 'AUTO',
     groupName: '解放大道',
+    latitude: 29.5664,
+    longitude: 106.4695,
     expectedStatus: 'OFF',
     statusMatch: true,
     lastHeartbeatTime: now(),
@@ -102,6 +112,8 @@ let devices: Device[] = [
     onlineStatus: 'ONLINE',
     controlMode: 'AUTO',
     groupName: '滨江路',
+    latitude: 29.5635,
+    longitude: 106.4678,
     expectedStatus: 'OFF',
     statusMatch: true,
     lastHeartbeatTime: now(),
@@ -115,6 +127,8 @@ let devices: Device[] = [
     onlineStatus: 'ONLINE',
     controlMode: 'AUTO',
     groupName: '滨江路',
+    latitude: 29.5633,
+    longitude: 106.4687,
     expectedStatus: 'OFF',
     statusMatch: false,
     lastHeartbeatTime: now(),
@@ -128,6 +142,8 @@ let devices: Device[] = [
     onlineStatus: 'ONLINE',
     controlMode: 'AUTO',
     groupName: null,
+    latitude: 29.5654,
+    longitude: 106.4698,
     expectedStatus: 'OFF',
     statusMatch: true,
     lastHeartbeatTime: now(),
@@ -402,6 +418,8 @@ export function createMockApi(): StreetLightApi {
         onlineStatus: 'OFFLINE',
         controlMode: 'AUTO',
         groupName: null,
+        latitude: body.latitude ?? null,
+        longitude: body.longitude ?? null,
         lastHeartbeatTime: null,
         createdAt: now(),
       }
@@ -411,6 +429,17 @@ export function createMockApi(): StreetLightApi {
     async updateDevice(id, body) {
       devices = devices.map((d) => (d.id === id ? { ...d, deviceName: body.deviceName } : d))
       return ok('修改成功')
+    },
+    async setDeviceLocation(id, body) {
+      const d = devices.find((x) => x.id === id)
+      if (!d) return fail('设备不存在')
+      const lat = body.latitude
+      const lng = body.longitude
+      if ((lat == null) !== (lng == null)) return fail('经纬度必须同时填写')
+      devices = devices.map((x) =>
+        x.id === id ? { ...x, latitude: lat, longitude: lng } : x,
+      )
+      return ok(lat == null ? '已清除位置' : '位置已更新')
     },
     async deleteDevice(id) {
       devices = devices.filter((d) => d.id !== id)

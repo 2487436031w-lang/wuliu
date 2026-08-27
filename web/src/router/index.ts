@@ -26,6 +26,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '设备管理' },
       },
       {
+        path: 'map',
+        name: 'map',
+        component: () => import('../views/MapView.vue'),
+        meta: { title: '路灯地图' },
+      },
+      {
         path: 'lights',
         name: 'lights',
         component: () => import('../views/LightsView.vue'),

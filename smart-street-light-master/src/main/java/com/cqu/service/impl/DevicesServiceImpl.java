@@ -104,6 +104,8 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
                 .onlineStatus(device.getOnlineStatus())
                 .controlMode(resolveControlMode(device.getControlMode()))
                 .groupName(normalizeGroupName(device.getGroupName()))
+                .latitude(device.getLatitude())
+                .longitude(device.getLongitude())
                 .expectedStatus(expected)
                 .statusMatch(isStatusMatch(device.getStatus(), expected))
                 .lastHeartbeatTime(device.getLastHeartbeatTime())
@@ -114,7 +116,7 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
     }
 
     @Override
-    public void addDevice(String deviceName, String deviceSn) {
+    public void addDevice(String deviceName, String deviceSn, BigDecimal latitude, BigDecimal longitude) {
         if (deviceName == null || deviceName.isBlank()) {
             throw new RuntimeException("设备名称不能为空");
         }
@@ -133,6 +135,7 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
         device.setDeviceName(deviceName);
         device.setDeviceSn(deviceSn);
         device.setControlMode("AUTO");
+        applyLocation(device, latitude, longitude);
         this.save(device);
         controlLogsService.recordLog(device.getId(), "ADD_DEVICE", "SUCCESS");
     }
@@ -151,6 +154,22 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
         device.setDeviceName(deviceName);
         this.updateById(device);
         controlLogsService.recordLog(id, "UPDATE_DEVICE", "SUCCESS");
+    }
+
+    @Override
+    public void updateDeviceLocation(Long id, BigDecimal latitude, BigDecimal longitude) {
+        Devices device = this.getById(id);
+        if (device == null) {
+            throw new RuntimeException("设备不存在");
+        }
+        applyLocation(device, latitude, longitude);
+        // 允许把坐标清成 null（updateById 默认忽略 null）
+        this.lambdaUpdate()
+                .eq(Devices::getId, id)
+                .set(Devices::getLatitude, device.getLatitude())
+                .set(Devices::getLongitude, device.getLongitude())
+                .update();
+        controlLogsService.recordLog(id, "UPDATE_LOCATION", "SUCCESS");
     }
 
     @Override
@@ -442,11 +461,33 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
                 .onlineStatus(device.getOnlineStatus())
                 .controlMode(resolveControlMode(device.getControlMode()))
                 .groupName(normalizeGroupName(device.getGroupName()))
+                .latitude(device.getLatitude())
+                .longitude(device.getLongitude())
                 .expectedStatus(expected)
                 .statusMatch(isStatusMatch(device.getStatus(), expected))
                 .lastHeartbeatTime(device.getLastHeartbeatTime())
                 .createdAt(device.getCreatedAt())
                 .build();
+    }
+
+    /** 经纬度须成对；都为 null 表示未标定 / 清除 */
+    private static void applyLocation(Devices device, BigDecimal latitude, BigDecimal longitude) {
+        if (latitude == null && longitude == null) {
+            device.setLatitude(null);
+            device.setLongitude(null);
+            return;
+        }
+        if (latitude == null || longitude == null) {
+            throw new RuntimeException("经纬度必须同时填写");
+        }
+        if (latitude.compareTo(new BigDecimal("-90")) < 0 || latitude.compareTo(new BigDecimal("90")) > 0) {
+            throw new RuntimeException("纬度范围应为 -90~90");
+        }
+        if (longitude.compareTo(new BigDecimal("-180")) < 0 || longitude.compareTo(new BigDecimal("180")) > 0) {
+            throw new RuntimeException("经度范围应为 -180~180");
+        }
+        device.setLatitude(latitude);
+        device.setLongitude(longitude);
     }
 
     /** 最近一次 SUCCESS 且带期望状态的指令 */

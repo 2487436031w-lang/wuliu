@@ -34,6 +34,10 @@ export interface Device {
   controlMode: 'AUTO' | 'MANUAL'
   /** 编组名称；null/空=未分组 */
   groupName: string | null
+  /** 纬度（GCJ-02）；未标定则为 null */
+  latitude: number | null
+  /** 经度（GCJ-02）；未标定则为 null */
+  longitude: number | null
   /** 最近成功指令期望 status；无则 null */
   expectedStatus?: 'ON' | 'OFF' | string | null
   /** 期望与实际是否一致（C1） */

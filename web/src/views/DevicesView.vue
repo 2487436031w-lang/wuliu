@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import { api } from '../api/client'
 import { useLatestRequest, useRowAction } from '../composables/useLatestRequest'
 import { useRealtimeStore } from '../stores/realtime'
@@ -247,6 +247,11 @@ function cancelCreateGroup(d: Device) {
           />
           <button type="button" class="ui-btn" @click="add">添加</button>
         </div>
+        <p class="hint-line">
+          添加后可在
+          <RouterLink to="/map">路灯地图</RouterLink>
+          上标定具体位置。
+        </p>
         <p v-if="msg" class="ui-msg">{{ msg }}</p>
       </section>
 
@@ -686,6 +691,12 @@ function cancelCreateGroup(d: Device) {
   margin: 0;
   font-size: var(--text-xs);
   color: var(--ink-muted);
+}
+
+.hint-line a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
 }
 
 .groups-shell {

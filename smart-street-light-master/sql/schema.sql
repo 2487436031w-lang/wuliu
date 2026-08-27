@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS devices
     online_status       VARCHAR(16)  NOT NULL DEFAULT 'OFFLINE', -- ONLINE | OFFLINE
     control_mode        VARCHAR(16)  NOT NULL DEFAULT 'AUTO',    -- AUTO | MANUAL
     group_name          VARCHAR(64),                             -- 编组名称，同名为一组
+    latitude            NUMERIC(10, 7),                          -- 纬度 GCJ-02
+    longitude           NUMERIC(10, 7),                          -- 经度 GCJ-02
     last_heartbeat_time TIMESTAMP,                               -- 最近心跳时间
     created_at          TIMESTAMP    NOT NULL DEFAULT now()
 );
@@ -37,6 +39,8 @@ COMMENT ON COLUMN devices.status IS '开关状态: ON-已开灯, OFF-已关灯';
 COMMENT ON COLUMN devices.online_status IS '在线状态: ONLINE-在线, OFFLINE-离线';
 COMMENT ON COLUMN devices.control_mode IS '控制模式: AUTO-跟随阈值, MANUAL-手动锁定';
 COMMENT ON COLUMN devices.group_name IS '编组名称，同名为一组；NULL/空=未分组';
+COMMENT ON COLUMN devices.latitude IS '纬度（GCJ-02，与高德底图一致）；NULL=未标定';
+COMMENT ON COLUMN devices.longitude IS '经度（GCJ-02，与高德底图一致）；NULL=未标定';
 COMMENT ON COLUMN devices.device_sn IS '硬件唯一序列号，MQTT主题标识';
 CREATE INDEX IF NOT EXISTS idx_devices_group_name ON devices (group_name);
 

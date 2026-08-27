@@ -38,31 +38,39 @@ INSERT INTO users (username, password, role) VALUES
 -- ============================================================
 INSERT INTO devices (
     device_name, device_sn, status, online_status, control_mode, group_name,
-    last_heartbeat_time, created_at
+    latitude, longitude, last_heartbeat_time, created_at
 ) VALUES
-    -- 真机位：默认离线，联调成功后由 MQTT 刷新
+    -- 真机位：默认离线，联调成功后由 MQTT 刷新（重庆大学 A 区沙正街一带）
     ('人民路001号路灯', 'SN-RM-001', 'OFF', 'OFFLINE', 'AUTO', '人民路',
+     29.56470, 106.46740,
      CURRENT_TIMESTAMP - INTERVAL '2 hours', CURRENT_TIMESTAMP - INTERVAL '30 days'),
     -- 人民路模拟：夜间开灯、在线、自动
     ('人民路002号路灯', 'SN-RM-002', 'ON',  'ONLINE',  'AUTO', '人民路',
+     29.56485, 106.46820,
      CURRENT_TIMESTAMP - INTERVAL '20 seconds', CURRENT_TIMESTAMP - INTERVAL '25 days'),
     -- 人民路模拟：昼间关灯、在线、自动
     ('人民路003号路灯', 'SN-RM-003', 'OFF', 'ONLINE',  'AUTO', '人民路',
+     29.56500, 106.46900,
      CURRENT_TIMESTAMP - INTERVAL '15 seconds', CURRENT_TIMESTAMP - INTERVAL '20 days'),
     -- 解放大道：手动锁定开灯
     ('解放大道东段灯', 'SN-JF-001', 'ON',  'ONLINE',  'MANUAL', '解放大道',
+     29.56620, 106.46860,
      CURRENT_TIMESTAMP - INTERVAL '40 seconds', CURRENT_TIMESTAMP - INTERVAL '18 days'),
     -- 解放大道模拟：在线（7 盏 mock 默认均 ONLINE；真机位 SN-RM-001 仍 OFFLINE）
     ('解放大道西段灯', 'SN-JF-002', 'OFF', 'ONLINE', 'AUTO', '解放大道',
+     29.56640, 106.46950,
      CURRENT_TIMESTAMP - INTERVAL '35 seconds', CURRENT_TIMESTAMP - INTERVAL '15 days'),
     -- 滨江：在线关灯
     ('滨江步道A灯', 'SN-BJ-001', 'OFF', 'ONLINE',  'AUTO', '滨江路',
+     29.56350, 106.46780,
      CURRENT_TIMESTAMP - INTERVAL '25 seconds', CURRENT_TIMESTAMP - INTERVAL '12 days'),
     -- 滨江：一致性异常 — 云端期望 OFF，板端仍 ON（C1 演示）
     ('滨江步道B灯', 'SN-BJ-002', 'ON',  'ONLINE',  'AUTO', '滨江路',
+     29.56330, 106.46870,
      CURRENT_TIMESTAMP - INTERVAL '30 seconds', CURRENT_TIMESTAMP - INTERVAL '12 days'),
     -- 未分组：校园主道
     ('校园主道路灯', 'SN-XQ-001', 'OFF', 'ONLINE',  'AUTO', NULL,
+     29.56540, 106.46980,
      CURRENT_TIMESTAMP - INTERVAL '50 seconds', CURRENT_TIMESTAMP - INTERVAL '10 days');
 
 -- ============================================================

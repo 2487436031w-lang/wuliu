@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { api, isMockMode } from '../api/client'
 import { useRealtimeStore } from '../stores/realtime'
@@ -45,7 +45,16 @@ async function load() {
   await loadOps()
 }
 
-onMounted(load)
+let statsPoll: number | undefined
+onMounted(() => {
+  void load()
+  statsPoll = window.setInterval(() => {
+    void load()
+  }, 4000)
+})
+onUnmounted(() => {
+  if (statsPoll) window.clearInterval(statsPoll)
+})
 
 watch(
   () => [realtime.deviceSyncTick, realtime.alarmSyncTick],
