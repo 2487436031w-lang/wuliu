@@ -14,7 +14,7 @@
 | 域 | 路径 |
 |----|------|
 | 用户 | `POST /users/register` `POST /users/login` |
-| 设备 | `/devices` CRUD、`/statistics`、`/{id}/switch` |
+| 设备 | `/devices` CRUD、`/statistics`、`/{id}/switch`、`/{id}/location` |
 | 光照 | `/light-readings`、`/latest/{id}`、`/trend` |
 | 告警 | `/alarm-logs`、`/{id}/resolve`、`/statistics` |
 | 阈值 | `GET/PUT /threshold-config` |

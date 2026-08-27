@@ -13,6 +13,7 @@ const router = useRouter()
 
 const nav = [
   { to: '/dashboard', label: '总览', icon: '◉' },
+  { to: '/map', label: '地图', icon: '⌖' },
   { to: '/devices', label: '设备', icon: '◎' },
   { to: '/lights', label: '光照', icon: '☀' },
   { to: '/alarms', label: '告警', icon: '⚠' },

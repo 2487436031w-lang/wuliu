@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import java.time.LocalDateTime;
 import com.baomidou.mybatisplus.annotation.TableId;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
@@ -54,6 +55,16 @@ public class Devices implements Serializable {
      * 编组名称：同名设备为一组；null/空表示未分组
      */
     private String groupName;
+
+    /**
+     * 纬度（GCJ-02，与高德底图一致）
+     */
+    private BigDecimal latitude;
+
+    /**
+     * 经度（GCJ-02，与高德底图一致）
+     */
+    private BigDecimal longitude;
 
     private LocalDateTime lastHeartbeatTime;
 

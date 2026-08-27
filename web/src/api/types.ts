@@ -27,8 +27,17 @@ export interface StreetLightApi {
     onlineStatus?: string
   }): Promise<ApiResult<PageResult<Device>>>
   getDevice(id: number): Promise<ApiResult<DeviceDetail>>
-  addDevice(body: { deviceName: string; deviceSn: string }): Promise<ApiResult<string>>
+  addDevice(body: {
+    deviceName: string
+    deviceSn: string
+    latitude?: number | null
+    longitude?: number | null
+  }): Promise<ApiResult<string>>
   updateDevice(id: number, body: { deviceName: string }): Promise<ApiResult<string>>
+  setDeviceLocation(
+    id: number,
+    body: { latitude: number | null; longitude: number | null },
+  ): Promise<ApiResult<string>>
   deleteDevice(id: number): Promise<ApiResult<string>>
   deviceStatistics(): Promise<ApiResult<DeviceStatistics>>
   switchDevice(id: number, status: 'ON' | 'OFF'): Promise<ApiResult<{ command: string; controlMode?: string }>>

@@ -127,6 +127,8 @@
 | onlineStatus      | string | 在线状态：ONLINE / OFFLINE |
 | controlMode       | string | 控制模式：AUTO / MANUAL   |
 | groupName         | string | 编组名称；空/null=未分组      |
+| latitude          | number | 纬度（GCJ-02）；未标定则为 null |
+| longitude         | number | 经度（GCJ-02）；未标定则为 null |
 | expectedStatus    | string | 最近成功指令期望 status（ON/OFF）；无则 null |
 | statusMatch       | bool   | 期望与实际是否一致（C1）；无期望时为 true |
 | lastHeartbeatTime | string | 最近心跳时间                |
@@ -170,15 +172,17 @@
 | 项目       | 内容                                               |
 |----------|--------------------------------------------------|
 | **URL**  | `POST /devices`                                  |
-| **请求体**  | `{"deviceName": "string", "deviceSn": "string"}` |
+| **请求体**  | `{"deviceName": "string", "deviceSn": "string", "latitude": number, "longitude": number}` |
 | **成功返回** | `{"code": 200, "data": "添加成功"}`                  |
 
 | 请求字段       | 类型     | 必填 | 说明                    |
 |------------|--------|----|-----------------------|
 | deviceName | string | 是  | 设备名称                  |
 | deviceSn   | string | 是  | 设备序列号（唯一，作为MQTT客户端标识） |
+| latitude   | number | 否  | 纬度（GCJ-02）；与 longitude 成对 |
+| longitude  | number | 否  | 经度（GCJ-02）；与 latitude 成对 |
 
-**作用**：注册新路灯设备，校验名称和序列号不为空、序列号不可重复。
+**作用**：注册新路灯设备，校验名称和序列号不为空、序列号不可重复。经纬度可空，须同时填写。
 
 ---
 
@@ -250,6 +254,27 @@ WebSocket 推送 `DEVICE_ONLINE_STATUS_CHANGED`。服务端另有
 | deviceName | string | 是  | 新设备名称 |
 
 **作用**：修改设备名称，序列号不可修改。
+
+---
+
+### 2.6.1 标定设备位置
+
+| 项目       | 内容                                                              |
+|----------|-----------------------------------------------------------------|
+| **URL**  | `PUT /devices/{id}/location`                                    |
+| **请求体**  | `{"latitude": number, "longitude": number}`                     |
+| **成功返回** | `{"code": 200, "data": "位置已更新"}` 或 `"已清除位置"`                  |
+
+| 路径参数 | 类型   | 说明   |
+|------|------|------|
+| id   | long | 设备ID |
+
+| 请求字段      | 类型     | 必填 | 说明                         |
+|-----------|--------|----|----------------------------|
+| latitude  | number | 否  | 纬度（GCJ-02）；与 longitude 成对 |
+| longitude | number | 否  | 经度（GCJ-02）；与 latitude 成对  |
+
+**作用**：在地图上标定路灯位置。两个字段都为空则清除坐标。
 
 ---
 

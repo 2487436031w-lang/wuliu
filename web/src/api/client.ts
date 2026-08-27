@@ -110,6 +110,8 @@ function createHttpApi(): StreetLightApi {
     addDevice: (body) => http('/devices', { method: 'POST', body: JSON.stringify(body) }),
     updateDevice: (id, body) =>
       http(`/devices/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    setDeviceLocation: (id, body) =>
+      http(`/devices/${Number(id)}/location`, { method: 'PUT', body: JSON.stringify(body) }),
     deleteDevice: (id) => http(`/devices/${id}`, { method: 'DELETE' }),
     deviceStatistics: () => httpData('/devices/statistics', {}, normalizeDeviceStatistics),
     switchDevice: (id, status) =>

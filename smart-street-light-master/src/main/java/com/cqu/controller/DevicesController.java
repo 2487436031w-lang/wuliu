@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -51,8 +52,11 @@ public class DevicesController {
     public Result<String> add(@RequestBody Map<String, Object> body) {
         String deviceName = (String) body.get("deviceName");
         String deviceSn = (String) body.get("deviceSn");
-        log.info("添加设备: deviceName={}, deviceSn={}", deviceName, deviceSn);
-        devicesService.addDevice(deviceName, deviceSn);
+        BigDecimal latitude = toDecimal(body.get("latitude"));
+        BigDecimal longitude = toDecimal(body.get("longitude"));
+        log.info("添加设备: deviceName={}, deviceSn={}, lat={}, lng={}",
+                deviceName, deviceSn, latitude, longitude);
+        devicesService.addDevice(deviceName, deviceSn, latitude, longitude);
         return Result.success("添加成功");
     }
 
@@ -65,6 +69,18 @@ public class DevicesController {
         log.info("编辑设备: id={}, deviceName={}", id, deviceName);
         devicesService.updateDevice(Long.valueOf(id), deviceName);
         return Result.success("修改成功");
+    }
+
+    /**
+     * 标定设备地图坐标；latitude/longitude 都为空则清除
+     */
+    @PutMapping("/{id}/location")
+    public Result<String> updateLocation(@PathVariable String id, @RequestBody Map<String, Object> body) {
+        BigDecimal latitude = toDecimal(body.get("latitude"));
+        BigDecimal longitude = toDecimal(body.get("longitude"));
+        log.info("标定位置: id={}, lat={}, lng={}", id, latitude, longitude);
+        devicesService.updateDeviceLocation(Long.valueOf(id), latitude, longitude);
+        return Result.success(latitude == null ? "已清除位置" : "位置已更新");
     }
 
     /**
@@ -181,5 +197,20 @@ public class DevicesController {
         response.put("count", count);
         response.put("mode", mode);
         return Result.success(response);
+    }
+
+    private static BigDecimal toDecimal(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        String s = raw.toString().trim();
+        if (s.isEmpty() || "null".equalsIgnoreCase(s)) {
+            return null;
+        }
+        try {
+            return new BigDecimal(s);
+        } catch (NumberFormatException e) {
+            throw new RuntimeException("经纬度格式不正确");
+        }
     }
 }

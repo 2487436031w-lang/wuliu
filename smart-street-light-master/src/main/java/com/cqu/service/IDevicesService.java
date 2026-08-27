@@ -4,6 +4,8 @@ import com.cqu.entity.Devices;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.cqu.vo.*;
 
+import java.math.BigDecimal;
+
 /**
  * <p>
  * 路灯设备表 服务类
@@ -25,14 +27,19 @@ public interface IDevicesService extends IService<Devices> {
     DeviceDetailVO getDeviceDetail(Long id);
 
     /**
-     * 添加设备
+     * 添加设备；经纬度可空，须成对出现
      */
-    void addDevice(String deviceName, String deviceSn);
+    void addDevice(String deviceName, String deviceSn, BigDecimal latitude, BigDecimal longitude);
 
     /**
      * 编辑设备名称
      */
     void updateDevice(Long id, String deviceName);
+
+    /**
+     * 标定或清除设备地图坐标；两者都为 null 则清除
+     */
+    void updateDeviceLocation(Long id, BigDecimal latitude, BigDecimal longitude);
 
     /**
      * 删除设备（同时清理关联的光照记录和告警日志）

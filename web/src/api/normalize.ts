@@ -48,6 +48,8 @@ export function normalizeDevice(raw: Record<string, unknown>): Device {
       const g = raw.groupName == null ? '' : String(raw.groupName).trim()
       return g || null
     })(),
+    latitude: asNullableNumber(raw.latitude),
+    longitude: asNullableNumber(raw.longitude),
     lastHeartbeatTime: (raw.lastHeartbeatTime as string | null) ?? null,
     createdAt: String(raw.createdAt ?? ''),
   }
