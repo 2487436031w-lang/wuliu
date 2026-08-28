@@ -9,8 +9,10 @@ mqtt:
   broker-url: tcp://127.0.0.1:1883
   client-id: smart-light-server-local
 
-# 模拟灯：优先用 Docker fleet-sim（mqtt-simulate-fleet.ps1）。
-# 仅在不跑 fleet 时改为 true，由 DemoMockKeepaliveTask 兜底（勿与 fleet 双开）。
+# 重庆演示灯廊：heartbeat 续在线；virtual-ack 对非真机立即确认开关（勿与 mqtt fleet-sim 双开，否则会覆盖开关态）。
+# 真机 SN-RM-001 仍走 MQTT 回执。
 streetlight:
   demo:
     mock-keepalive: false
+    fleet-heartbeat: true
+    virtual-ack: true

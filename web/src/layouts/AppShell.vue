@@ -68,10 +68,12 @@ async function onLogout() {
     </aside>
 
     <div class="main">
-      <header class="top">
+      <header class="top" :data-compact="route.name === 'dashboard'">
         <div class="top-text">
           <h1>{{ route.meta.title }}</h1>
-          <p class="subtitle">{{ route.meta.title }} · 灯廊管理平台</p>
+          <p class="subtitle">
+            {{ route.name === 'dashboard' ? '重庆主城 · 地图指挥' : `${route.meta.title} · 灯廊管理平台` }}
+          </p>
         </div>
         <div class="status-pill" :data-on="realtime.connected">
           <span class="dot" />
@@ -267,6 +269,14 @@ async function onLogout() {
   align-items: center;
   padding: var(--space-8) var(--page-pad) var(--space-4);
   flex-shrink: 0;
+}
+
+.top[data-compact='true'] {
+  padding: var(--space-3) var(--page-pad);
+}
+
+.top[data-compact='true'] h1 {
+  font-size: var(--text-xl);
 }
 
 .top-text h1 {

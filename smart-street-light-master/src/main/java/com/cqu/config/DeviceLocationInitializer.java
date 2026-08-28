@@ -3,87 +3,121 @@ package com.cqu.config;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cqu.entity.Devices;
 import com.cqu.mapper.DevicesMapper;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.LinkedHashMap;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
-import java.util.Map;
 
 /**
- * 已有本地库不会自动跑 sql/migrations，启动时补齐经纬度列，
- * 并为尚未标定的演示路灯写入重庆大学 A 区一带坐标。
+ * 启动时写入重庆各区演示路灯（真实商圈/道路方位），接入 devices 表供地图与开关使用。
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class DeviceLocationInitializer implements ApplicationRunner {
 
-    /** GCJ-02，与前端灯廊地图一致 */
-    private static final Map<String, BigDecimal[]> DEMO = new LinkedHashMap<>();
-
-    static {
-        DEMO.put("SN-RM-001", coords("29.56380", "106.46120"));
-        DEMO.put("SN-RM-002", coords("29.56470", "106.46740"));
-        DEMO.put("SN-RM-003", coords("29.56560", "106.47380"));
-        DEMO.put("SN-JF-001", coords("29.56960", "106.46400"));
-        DEMO.put("SN-JF-002", coords("29.57180", "106.47020"));
-        DEMO.put("SN-BJ-001", coords("29.55640", "106.46550"));
-        DEMO.put("SN-BJ-002", coords("29.55780", "106.47400"));
-        DEMO.put("SN-XQ-001", coords("29.56880", "106.46680"));
-    }
-
-    private static BigDecimal[] coords(String lat, String lng) {
-        return new BigDecimal[]{new BigDecimal(lat), new BigDecimal(lng)};
-    }
+    private static final ZoneId CLOCK = ZoneId.of("Asia/Shanghai");
+    private static final String HARDWARE_SN = "SN-RM-001";
 
     private final DataSource dataSource;
     private final DevicesMapper devicesMapper;
+    private final ObjectMapper objectMapper;
 
     @Override
     public void run(ApplicationArguments args) {
         if (!ensureColumns()) {
             return;
         }
-        int seeded = 0;
-        for (Map.Entry<String, BigDecimal[]> e : DEMO.entrySet()) {
-            Devices device = devicesMapper.selectOne(
-                    new LambdaQueryWrapper<Devices>().eq(Devices::getDeviceSn, e.getKey()));
-            if (device == null || device.getLatitude() != null) {
+        FleetFile fleet = loadFleet();
+        if (fleet == null || fleet.groups == null) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now(CLOCK);
+        int inserted = 0;
+        int updated = 0;
+        for (FleetGroup group : fleet.groups) {
+            if (group.lamps == null) {
                 continue;
             }
-            device.setLatitude(e.getValue()[0]);
-            device.setLongitude(e.getValue()[1]);
-            devicesMapper.updateById(device);
-            seeded++;
+            for (FleetLamp lamp : group.lamps) {
+                Devices existing = devicesMapper.selectOne(
+                        new LambdaQueryWrapper<Devices>().eq(Devices::getDeviceSn, lamp.sn));
+                if (existing == null) {
+                    Devices device = new Devices();
+                    device.setDeviceName(lamp.name);
+                    device.setDeviceSn(lamp.sn);
+                    device.setStatus(lamp.status == null ? "OFF" : lamp.status);
+                    device.setOnlineStatus(HARDWARE_SN.equals(lamp.sn) ? "OFFLINE"
+                            : (lamp.online == null ? "ONLINE" : lamp.online));
+                    device.setControlMode("AUTO");
+                    device.setGroupName(group.name);
+                    device.setLatitude(bd(lamp.lat));
+                    device.setLongitude(bd(lamp.lng));
+                    device.setLastHeartbeatTime(HARDWARE_SN.equals(lamp.sn) ? now.minusHours(2) : now);
+                    device.setCreatedAt(now);
+                    devicesMapper.insert(device);
+                    inserted++;
+                } else {
+                    existing.setDeviceName(lamp.name);
+                    existing.setGroupName(group.name);
+                    existing.setLatitude(bd(lamp.lat));
+                    existing.setLongitude(bd(lamp.lng));
+                    if (!HARDWARE_SN.equals(lamp.sn)) {
+                        existing.setOnlineStatus(lamp.online == null ? "ONLINE" : lamp.online);
+                        existing.setLastHeartbeatTime(now);
+                    }
+                    devicesMapper.updateById(existing);
+                    updated++;
+                }
+            }
         }
+        remapLegacyDemoLamps();
+        log.info("重庆演示灯廊已接入后端：新增 {} 盏，更新 {} 盏", inserted, updated);
+    }
 
-        List<Devices> missing = devicesMapper.selectList(
-                new LambdaQueryWrapper<Devices>().isNull(Devices::getLatitude));
-        int extra = 0;
-        int n = missing.size();
-        for (int i = 0; i < n; i++) {
-            Devices device = missing.get(i);
-            if (device.getLongitude() != null) {
+    /** 旧库残留的解放大道/滨江演示灯并入三峡广场，避免堆在沙正街。 */
+    private void remapLegacyDemoLamps() {
+        record Spot(double lat, double lng) {}
+        java.util.Map<String, Spot> leftover = java.util.Map.of(
+                "SN-JF-001", new Spot(29.5570, 106.4548),
+                "SN-JF-002", new Spot(29.5564, 106.4554),
+                "SN-BJ-001", new Spot(29.5560, 106.4540),
+                "SN-BJ-002", new Spot(29.5582, 106.4564));
+        for (var e : leftover.entrySet()) {
+            Devices existing = devicesMapper.selectOne(
+                    new LambdaQueryWrapper<Devices>().eq(Devices::getDeviceSn, e.getKey()));
+            if (existing == null) {
                 continue;
             }
-            double offset = i - (n - 1) / 2.0;
-            device.setLatitude(bd(29.56492 + offset * 0.00028));
-            device.setLongitude(bd(106.46882 + offset * 0.00038));
-            devicesMapper.updateById(device);
-            extra++;
+            existing.setGroupName("三峡广场");
+            existing.setLatitude(bd(e.getValue().lat()));
+            existing.setLongitude(bd(e.getValue().lng()));
+            devicesMapper.updateById(existing);
         }
-        if (seeded + extra > 0) {
-            log.info("已为未标定路灯写入演示坐标：已知 SN {} 盏，其余 {} 盏", seeded, extra);
+    }
+
+    private FleetFile loadFleet() {
+        try (InputStream in = new ClassPathResource("demo/chongqing-fleet.json").getInputStream()) {
+            return objectMapper.readValue(in, FleetFile.class);
+        } catch (Exception e) {
+            log.warn("读取重庆灯廊演示数据失败: {}", e.getMessage());
+            return null;
         }
     }
 
@@ -93,12 +127,38 @@ public class DeviceLocationInitializer implements ApplicationRunner {
             st.execute("ALTER TABLE devices ADD COLUMN IF NOT EXISTS longitude NUMERIC(10, 7)");
             return true;
         } catch (SQLException e) {
-            log.warn("补齐 devices 经纬度列失败（地图标定可能不可用）: {}", e.getMessage());
+            log.warn("补齐 devices 经纬度列失败: {}", e.getMessage());
             return false;
         }
     }
 
     private static BigDecimal bd(double v) {
         return BigDecimal.valueOf(v).setScale(7, RoundingMode.HALF_UP);
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class FleetFile {
+        public List<FleetGroup> groups;
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class FleetGroup {
+        public String name;
+        public String district;
+        public String color;
+        public List<FleetLamp> lamps;
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class FleetLamp {
+        public String sn;
+        public String name;
+        public double lat;
+        public double lng;
+        public String status;
+        public String online;
     }
 }
