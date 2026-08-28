@@ -15,7 +15,6 @@ import type {
   TrendPoint,
   UserSession,
 } from '../types/domain'
-import { CHONGQING_FLEET } from '../config/lampLocations'
 import { fail, ok, type StreetLightApi } from './types'
 
 const now = () => {
@@ -29,40 +28,128 @@ let users: { username: string; password: string; role: Role; id: number }[] = [
   { id: 2, username: 'staff', password: 'staff123', role: 'MUNICIPAL_STAFF' },
 ]
 
-let nextDeviceId = 1
-let devices: Device[] = CHONGQING_FLEET.groups.flatMap((g) =>
-  g.lamps.map((l) => {
-    const status = l.status === 'ON' ? 'ON' : 'OFF'
-    const online = l.online === 'OFFLINE' ? 'OFFLINE' : 'ONLINE'
-    return {
-      id: String(nextDeviceId++),
-      deviceName: l.name,
-      deviceSn: l.sn,
-      status,
-      onlineStatus: online,
-      controlMode: 'AUTO' as const,
-      groupName: g.name,
-      latitude: l.lat,
-      longitude: l.lng,
-      expectedStatus: status,
-      statusMatch: true,
-      lastHeartbeatTime: online === 'OFFLINE' ? '2026-08-25 07:00:00' : now(),
-      createdAt: '2026-07-26 10:00:00',
-    } satisfies Device
-  }),
-)
-
-function deviceBySn(sn: string): Device {
-  const hit = devices.find((d) => d.deviceSn === sn)
-  if (!hit) throw new Error(`演示灯不存在: ${sn}`)
-  return hit
-}
-
-const rm1 = deviceBySn('SN-RM-001')
-const rm2 = deviceBySn('SN-RM-002')
-const rm3 = deviceBySn('SN-RM-003')
-const yjp5 = deviceBySn('SN-YJP-005')
-const gyq6 = deviceBySn('SN-GYQ-006')
+let devices: Device[] = [
+  {
+    id: 1,
+    deviceName: '人民路001号路灯',
+    deviceSn: 'SN-RM-001',
+    status: 'OFF',
+    onlineStatus: 'OFFLINE',
+    controlMode: 'AUTO',
+    groupName: '人民路',
+    latitude: 29.5647,
+    longitude: 106.4674,
+    expectedStatus: 'ON',
+    statusMatch: false,
+    lastHeartbeatTime: '2026-08-25 07:00:00',
+    createdAt: '2026-07-26 10:00:00',
+  },
+  {
+    id: 2,
+    deviceName: '人民路002号路灯',
+    deviceSn: 'SN-RM-002',
+    status: 'ON',
+    onlineStatus: 'ONLINE',
+    controlMode: 'AUTO',
+    groupName: '人民路',
+    latitude: 29.56485,
+    longitude: 106.4682,
+    expectedStatus: 'ON',
+    statusMatch: true,
+    lastHeartbeatTime: now(),
+    createdAt: '2026-07-31 10:00:00',
+  },
+  {
+    id: 3,
+    deviceName: '人民路003号路灯',
+    deviceSn: 'SN-RM-003',
+    status: 'OFF',
+    onlineStatus: 'ONLINE',
+    controlMode: 'AUTO',
+    groupName: '人民路',
+    latitude: 29.565,
+    longitude: 106.469,
+    expectedStatus: 'OFF',
+    statusMatch: true,
+    lastHeartbeatTime: now(),
+    createdAt: '2026-08-05 10:00:00',
+  },
+  {
+    id: 4,
+    deviceName: '解放大道东段灯',
+    deviceSn: 'SN-JF-001',
+    status: 'ON',
+    onlineStatus: 'ONLINE',
+    controlMode: 'MANUAL',
+    groupName: '解放大道',
+    latitude: 29.5662,
+    longitude: 106.4686,
+    expectedStatus: 'ON',
+    statusMatch: true,
+    lastHeartbeatTime: now(),
+    createdAt: '2026-08-07 10:00:00',
+  },
+  {
+    id: 5,
+    deviceName: '解放大道西段灯',
+    deviceSn: 'SN-JF-002',
+    status: 'OFF',
+    onlineStatus: 'ONLINE',
+    controlMode: 'AUTO',
+    groupName: '解放大道',
+    latitude: 29.5664,
+    longitude: 106.4695,
+    expectedStatus: 'OFF',
+    statusMatch: true,
+    lastHeartbeatTime: now(),
+    createdAt: '2026-08-10 10:00:00',
+  },
+  {
+    id: 6,
+    deviceName: '滨江步道A灯',
+    deviceSn: 'SN-BJ-001',
+    status: 'OFF',
+    onlineStatus: 'ONLINE',
+    controlMode: 'AUTO',
+    groupName: '滨江路',
+    latitude: 29.5635,
+    longitude: 106.4678,
+    expectedStatus: 'OFF',
+    statusMatch: true,
+    lastHeartbeatTime: now(),
+    createdAt: '2026-08-13 10:00:00',
+  },
+  {
+    id: 7,
+    deviceName: '滨江步道B灯',
+    deviceSn: 'SN-BJ-002',
+    status: 'ON',
+    onlineStatus: 'ONLINE',
+    controlMode: 'AUTO',
+    groupName: '滨江路',
+    latitude: 29.5633,
+    longitude: 106.4687,
+    expectedStatus: 'OFF',
+    statusMatch: false,
+    lastHeartbeatTime: now(),
+    createdAt: '2026-08-13 10:00:00',
+  },
+  {
+    id: 8,
+    deviceName: '校园主道路灯',
+    deviceSn: 'SN-XQ-001',
+    status: 'OFF',
+    onlineStatus: 'ONLINE',
+    controlMode: 'AUTO',
+    groupName: null,
+    latitude: 29.5654,
+    longitude: 106.4698,
+    expectedStatus: 'OFF',
+    statusMatch: true,
+    lastHeartbeatTime: now(),
+    createdAt: '2026-08-15 10:00:00',
+  },
+]
 
 /** 城市道路昼夜 lux 近似（含偏置与噪声） */
 function diurnalLux(hour: number, minute: number, bias: number, seed: number): number {
@@ -82,11 +169,16 @@ function diurnalLux(hour: number, minute: number, bias: number, seed: number): n
   return Math.max(0.2, Math.round((base + bias + noise) * 100) / 100)
 }
 
-const deviceMeta = devices.map((d) => ({
-  id: d.id,
-  name: d.deviceName,
-  bias: ((Number(d.id) * 7) % 31) - 15,
-}))
+const deviceMeta = [
+  { id: 1, name: '人民路001号路灯', bias: -8 },
+  { id: 2, name: '人民路002号路灯', bias: 5 },
+  { id: 3, name: '人民路003号路灯', bias: 12 },
+  { id: 4, name: '解放大道东段灯', bias: -3 },
+  { id: 5, name: '解放大道西段灯', bias: 0 },
+  { id: 6, name: '滨江步道A灯', bias: 18 },
+  { id: 7, name: '滨江步道B灯', bias: 10 },
+  { id: 8, name: '校园主道路灯', bias: -15 },
+]
 
 let lights: LightReading[] = []
 let lightSeq = 1
@@ -102,12 +194,12 @@ for (let day = 0; day < 3; day++) {
       // 西段离线：最近 3 小时无数据
       const ageHours = day * 24 + (today.getHours() - h) + (today.getMinutes() - min) / 60
       for (const meta of deviceMeta) {
-        if (meta.id === yjp5.id && day === 0 && ageHours < 3) continue
+        if (meta.id === 5 && day === 0 && ageHours < 3) continue
         lights.push({
           id: lightSeq++,
           deviceId: meta.id,
           deviceName: meta.name,
-          lightIntensity: diurnalLux(h, min, meta.bias, Number(meta.id) + day),
+          lightIntensity: diurnalLux(h, min, meta.bias, meta.id + day),
           createdAt: `${y}-${mo}-${dd} ${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}:00`,
         })
       }
@@ -115,65 +207,65 @@ for (let day = 0; day < 3; day++) {
   }
 }
 // 对齐「最新」采样与演示开关态
-function bumpLatest(deviceId: string, lux: number) {
+function bumpLatest(deviceId: number, lux: number) {
   let last = -1
   for (let i = 0; i < lights.length; i++) if (lights[i].deviceId === deviceId) last = i
   if (last >= 0) lights[last] = { ...lights[last], lightIntensity: lux }
 }
-bumpLatest(rm2.id, 12.4)
-bumpLatest(rm3.id, 356.2)
-bumpLatest(deviceBySn('SN-JFB-001').id, 520.1)
-bumpLatest(deviceBySn('SN-GYQ-001').id, 412.8)
-bumpLatest(gyq6.id, 95.6)
-bumpLatest(deviceBySn('SN-XQ-001').id, 268.5)
+bumpLatest(2, 12.4)
+bumpLatest(3, 356.2)
+bumpLatest(4, 520.1)
+bumpLatest(6, 412.8)
+bumpLatest(7, 95.6)
+bumpLatest(8, 268.5)
 
 let alarms: AlarmLog[] = [
   {
     id: '1',
-    deviceId: yjp5.id,
-    deviceName: yjp5.deviceName,
+    deviceId: 5,
+    deviceName: '解放大道西段灯',
     alarmType: 'OFFLINE',
-    message: `设备${yjp5.deviceName}心跳超时，已自动标记为离线`,
-    status: 'ACTIVE',
-    createdAt: '2026-08-25 07:10:00',
-    resolvedAt: null,
+    message: '设备解放大道西段灯历史心跳超时（已恢复在线）',
+    status: 'RESOLVED',
+    createdAt: '2026-08-24 10:00:00',
+    resolvedAt: '2026-08-24 10:40:00',
   },
   {
     id: '2',
-    deviceId: rm1.id,
-    deviceName: rm1.deviceName,
+    deviceId: 1,
+    deviceName: '人民路001号路灯',
     alarmType: 'OFFLINE',
-    message: `设备${rm1.deviceName}心跳超时，已自动标记为离线`,
+    message: '设备人民路001号路灯心跳超时，已自动标记为离线',
     status: 'ACTIVE',
     createdAt: '2026-08-25 08:20:00',
     resolvedAt: null,
   },
   {
     id: '3',
-    deviceId: rm1.id,
-    deviceName: rm1.deviceName,
+    deviceId: 1,
+    deviceName: '人民路001号路灯',
     alarmType: 'COMMAND_TIMEOUT',
-    message: `设备${rm1.deviceName}指令 ON 超过 30s 未收到 status 回执`,
+    message: '设备人民路001号路灯指令 ON 超过 30s 未收到 status 回执',
     status: 'ACTIVE',
     createdAt: '2026-08-25 08:32:00',
     resolvedAt: null,
   },
   {
     id: '4',
-    deviceId: gyq6.id,
-    deviceName: gyq6.deviceName,
+    deviceId: 7,
+    deviceName: '滨江步道B灯',
     alarmType: 'LIGHT_ABNORMAL',
-    message: `设备${gyq6.deviceName}高光照下仍保持开灯，期望与实际不一致`,
+    message: '设备滨江步道B灯高光照下仍保持开灯，期望与实际不一致',
     status: 'ACTIVE',
     createdAt: '2026-08-25 09:50:00',
     resolvedAt: null,
   },
   {
     id: '5',
-    deviceId: rm2.id,
-    deviceName: rm2.deviceName,
+    deviceId: 2,
+    deviceName: '人民路002号路灯',
     alarmType: 'HEARTBEAT_TIMEOUT',
-    message: `设备${rm2.deviceName}短暂心跳丢失后已恢复`,
+    message: '设备人民路002号路灯短暂心跳丢失后已恢复',
     status: 'RESOLVED',
     createdAt: '2026-08-23 22:10:00',
     resolvedAt: '2026-08-23 22:30:00',
@@ -192,8 +284,8 @@ let thresholdOverrides: ThresholdOverride[] = [
   {
     id: '1',
     scopeType: 'GROUP',
-    scopeKey: '重大校园',
-    scopeLabel: '重大校园',
+    scopeKey: '人民路',
+    scopeLabel: '人民路',
     lightThresholdOn: 25,
     lightThresholdOff: 70,
     updatedAt: now(),
@@ -203,8 +295,8 @@ let thresholdOverrides: ThresholdOverride[] = [
 let controlLogs: ControlLog[] = [
   {
     id: 1,
-    deviceId: rm2.id,
-    deviceName: rm2.deviceName,
+    deviceId: 2,
+    deviceName: '人民路002号路灯',
     operatorId: null,
     operatorName: null,
     command: 'ON',
@@ -216,8 +308,8 @@ let controlLogs: ControlLog[] = [
   },
   {
     id: 2,
-    deviceId: rm3.id,
-    deviceName: rm3.deviceName,
+    deviceId: 3,
+    deviceName: '人民路003号路灯',
     operatorId: null,
     operatorName: null,
     command: 'OFF',
@@ -229,8 +321,8 @@ let controlLogs: ControlLog[] = [
   },
   {
     id: 3,
-    deviceId: gyq6.id,
-    deviceName: gyq6.deviceName,
+    deviceId: 7,
+    deviceName: '滨江步道B灯',
     operatorId: null,
     operatorName: null,
     command: 'OFF',
@@ -242,8 +334,8 @@ let controlLogs: ControlLog[] = [
   },
   {
     id: 4,
-    deviceId: deviceBySn('SN-JFB-001').id,
-    deviceName: deviceBySn('SN-JFB-001').deviceName,
+    deviceId: 4,
+    deviceName: '解放大道东段灯',
     operatorId: 1,
     operatorName: 'admin',
     command: 'ON',
@@ -255,8 +347,8 @@ let controlLogs: ControlLog[] = [
   },
   {
     id: 5,
-    deviceId: rm1.id,
-    deviceName: rm1.deviceName,
+    deviceId: 1,
+    deviceName: '人民路001号路灯',
     operatorId: 1,
     operatorName: 'admin',
     command: 'ON',
@@ -319,7 +411,7 @@ export function createMockApi(): StreetLightApi {
     async addDevice(body) {
       if (devices.some((d) => d.deviceSn === body.deviceSn)) return fail('序列号已存在')
       const d: Device = {
-        id: String(nextDeviceId++),
+        id: devices.length + 1,
         deviceName: body.deviceName,
         deviceSn: body.deviceSn,
         status: 'OFF',
@@ -364,7 +456,7 @@ export function createMockApi(): StreetLightApi {
       return ok(stats)
     },
     async switchDevice(id, status) {
-      const deviceId = String(id)
+      const deviceId = Number(id)
       const d = devices.find((x) => x.id === deviceId)
       if (!d) return fail('设备不存在')
       devices = devices.map((x) =>
@@ -391,13 +483,13 @@ export function createMockApi(): StreetLightApi {
       return ok({ command: status === 'ON' ? 'MANUAL_ON' : 'MANUAL_OFF', controlMode: 'MANUAL' })
     },
     async setControlMode(id, mode) {
-      const deviceId = String(id)
+      const deviceId = Number(id)
       if (!devices.find((x) => x.id === deviceId)) return fail('设备不存在')
       devices = devices.map((x) => (x.id === deviceId ? { ...x, controlMode: mode } : x))
       return ok('模式已更新为 ' + mode)
     },
     async setDeviceGroup(id, groupName) {
-      const deviceId = String(id)
+      const deviceId = Number(id)
       if (!devices.find((x) => x.id === deviceId)) return fail('设备不存在')
       const name = groupName?.trim() || null
       devices = devices.map((x) => (x.id === deviceId ? { ...x, groupName: name } : x))
@@ -428,7 +520,7 @@ export function createMockApi(): StreetLightApi {
     async listLightReadings(params) {
       let list = [...lights].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
       if (params.deviceId) {
-        list = list.filter((l) => l.deviceId === String(params.deviceId))
+        list = list.filter((l) => l.deviceId === Number(params.deviceId))
       } else if (params.groupName) {
         const ids = new Set(
           devices.filter((d) => d.groupName === params.groupName).map((d) => d.id),
@@ -438,7 +530,7 @@ export function createMockApi(): StreetLightApi {
       return ok(pageOf(list, params.page, params.pageSize))
     },
     async latestLight(deviceId) {
-      const id = String(deviceId)
+      const id = Number(deviceId)
       const latest = [...lights].reverse().find((l) => l.deviceId === id)
       if (!latest) return fail('暂无光照数据')
       return ok({
@@ -450,7 +542,7 @@ export function createMockApi(): StreetLightApi {
     async lightTrend(params) {
       let scoped = [...lights]
       if (params.deviceId != null) {
-        const id = String(params.deviceId)
+        const id = Number(params.deviceId)
         scoped = scoped.filter((l) => l.deviceId === id)
         let points: TrendPoint[] = scoped.map((l) => ({ time: l.createdAt, value: l.lightIntensity }))
         if (params.startTime) points = points.filter((p) => p.time >= params.startTime)
@@ -551,7 +643,7 @@ export function createMockApi(): StreetLightApi {
       return ok('覆盖已删除')
     },
     async getEffectiveThreshold(deviceId) {
-      const d = devices.find((x) => x.id === String(deviceId))
+      const d = devices.find((x) => x.id === Number(deviceId))
       const deviceOv = thresholdOverrides.find(
         (o) => o.scopeType === 'DEVICE' && o.scopeKey === String(deviceId),
       )
@@ -595,16 +687,16 @@ export function createMockApi(): StreetLightApi {
 
 /** Mock 实时：缓慢抖动在线模拟灯的光照 */
 export function mockTickLight(): LatestLight | null {
-  const d = devices.find((x) => x.id === rm2.id && x.onlineStatus === 'ONLINE')
+  const d = devices.find((x) => x.id === 2 && x.onlineStatus === 'ONLINE')
   if (!d) return null
   const intensity = Math.max(5, Math.min(40, 12 + Math.random() * 18))
   const row: LightReading = {
     id: lightSeq++,
-    deviceId: rm2.id,
+    deviceId: 2,
     deviceName: d.deviceName,
     lightIntensity: intensity,
     createdAt: now(),
   }
   lights = [row, ...lights].slice(0, 800)
-  return { deviceId: rm2.id, lightIntensity: intensity, createdAt: row.createdAt }
+  return { deviceId: 2, lightIntensity: intensity, createdAt: row.createdAt }
 }

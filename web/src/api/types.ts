@@ -26,23 +26,23 @@ export interface StreetLightApi {
     status?: string
     onlineStatus?: string
   }): Promise<ApiResult<PageResult<Device>>>
-  getDevice(id: string): Promise<ApiResult<DeviceDetail>>
+  getDevice(id: number): Promise<ApiResult<DeviceDetail>>
   addDevice(body: {
     deviceName: string
     deviceSn: string
     latitude?: number | null
     longitude?: number | null
   }): Promise<ApiResult<string>>
-  updateDevice(id: string, body: { deviceName: string }): Promise<ApiResult<string>>
+  updateDevice(id: number, body: { deviceName: string }): Promise<ApiResult<string>>
   setDeviceLocation(
-    id: string,
+    id: number,
     body: { latitude: number | null; longitude: number | null },
   ): Promise<ApiResult<string>>
-  deleteDevice(id: string): Promise<ApiResult<string>>
+  deleteDevice(id: number): Promise<ApiResult<string>>
   deviceStatistics(): Promise<ApiResult<DeviceStatistics>>
-  switchDevice(id: string, status: 'ON' | 'OFF'): Promise<ApiResult<{ command: string; controlMode?: string }>>
-  setControlMode(id: string, mode: 'AUTO' | 'MANUAL'): Promise<ApiResult<string>>
-  setDeviceGroup(id: string, groupName: string | null): Promise<ApiResult<string>>
+  switchDevice(id: number, status: 'ON' | 'OFF'): Promise<ApiResult<{ command: string; controlMode?: string }>>
+  setControlMode(id: number, mode: 'AUTO' | 'MANUAL'): Promise<ApiResult<string>>
+  setDeviceGroup(id: number, groupName: string | null): Promise<ApiResult<string>>
   switchGroup(
     groupName: string,
     status: 'ON' | 'OFF',
@@ -54,12 +54,12 @@ export interface StreetLightApi {
   listLightReadings(params: {
     page?: number
     pageSize?: number
-    deviceId?: string
+    deviceId?: number
     groupName?: string
   }): Promise<ApiResult<PageResult<LightReading>>>
-  latestLight(deviceId: string): Promise<ApiResult<LatestLight>>
+  latestLight(deviceId: number): Promise<ApiResult<LatestLight>>
   lightTrend(params: {
-    deviceId?: string
+    deviceId?: number
     groupName?: string
     startTime: string
     endTime: string
@@ -67,7 +67,7 @@ export interface StreetLightApi {
   listAlarms(params: {
     page?: number
     pageSize?: number
-    deviceId?: string
+    deviceId?: number
     alarmType?: string
     status?: string
   }): Promise<ApiResult<PageResult<AlarmLog>>>
@@ -87,11 +87,11 @@ export interface StreetLightApi {
     lightThresholdOff: number
   }): Promise<ApiResult<string>>
   deleteThresholdOverride(scopeType: string, scopeKey: string): Promise<ApiResult<string>>
-  getEffectiveThreshold(deviceId: string): Promise<ApiResult<import('../types/domain').EffectiveThreshold>>
+  getEffectiveThreshold(deviceId: number): Promise<ApiResult<import('../types/domain').EffectiveThreshold>>
   listControlLogs(params: {
     page?: number
     pageSize?: number
-    deviceId?: string
+    deviceId?: number
     source?: string
   }): Promise<ApiResult<PageResult<ControlLog>>>
 }

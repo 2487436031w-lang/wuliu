@@ -3,13 +3,35 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { api, isMockMode } from '../api/client'
 import { useRealtimeStore } from '../stores/realtime'
-import StreetlightMap from '../components/StreetlightMap.vue'
-import type { AlarmStatistics, DeviceStatistics, ThresholdConfig } from '../types/domain'
+import type { AlarmStatistics, Device, DeviceStatistics, ThresholdConfig } from '../types/domain'
 
 const realtime = useRealtimeStore()
 const stats = ref<DeviceStatistics | null>(null)
 const alarmStats = ref<AlarmStatistics | null>(null)
 const threshold = ref<ThresholdConfig | null>(null)
+const offlineDevices = ref<Device[]>([])
+const autoSwitchToday = ref(0)
+
+function isToday(iso: string) {
+  const d = new Date(iso)
+  const n = new Date()
+  return (
+    d.getFullYear() === n.getFullYear() &&
+    d.getMonth() === n.getMonth() &&
+    d.getDate() === n.getDate()
+  )
+}
+
+async function loadOps() {
+  const [offlineRes, logsRes] = await Promise.all([
+    api.listDevices({ page: 1, pageSize: 20, onlineStatus: 'OFFLINE' }),
+    api.listControlLogs({ page: 1, pageSize: 200, source: 'AUTO' }),
+  ])
+  if (offlineRes.code === 200) offlineDevices.value = offlineRes.data.records
+  if (logsRes.code === 200) {
+    autoSwitchToday.value = logsRes.data.records.filter((c) => isToday(c.createdAt)).length
+  }
+}
 
 async function load() {
   const [d, a, t] = await Promise.all([
@@ -20,6 +42,7 @@ async function load() {
   if (d.code === 200) stats.value = d.data
   if (a.code === 200) alarmStats.value = a.data
   if (t.code === 200) threshold.value = t.data
+  await loadOps()
 }
 
 let statsPoll: number | undefined
@@ -43,7 +66,7 @@ watch(
 const tiles = computed(() => {
   if (!stats.value) return []
   return [
-    { label: '设备', value: stats.value.totalCount, to: '/devices' },
+    { label: '设备总数', value: stats.value.totalCount, to: '/devices' },
     {
       label: '在线',
       value: stats.value.onlineCount,
@@ -58,158 +81,308 @@ const tiles = computed(() => {
       query: { onlineStatus: 'OFFLINE' },
     },
     {
-      label: '开灯',
+      label: '已开灯',
       value: stats.value.onCount,
       to: '/devices',
       query: { status: 'ON' },
       tone: 'on',
     },
     {
-      label: '关灯',
+      label: '已关灯',
       value: stats.value.offCount,
       to: '/devices',
       query: { status: 'OFF' },
     },
-    {
-      label: '告警',
-      value: alarmStats.value?.activeCount ?? 0,
-      to: '/alarms',
-      query: { status: 'ACTIVE' },
-      tone: 'bad',
-    },
   ]
 })
+
+const alarmTile = computed(() => ({
+  label: '待处理告警',
+  value: alarmStats.value?.activeCount ?? 0,
+}))
 </script>
 
 <template>
   <div class="ui-page ui-page-fill dashboard-page">
-    <div class="dash-top">
-      <RouterLink to="/lights" class="lux-chip ui-link-card">
-        <p class="lux-label">光照</p>
-        <p class="lux-value mono">
+    <RouterLink to="/lights" class="hero page-hero ui-link-card slide-up-enter-active">
+      <div class="hero-main">
+        <p class="eyebrow">实时光照 · 点击查看趋势</p>
+        <p class="hero-value mono">
           {{ realtime.latestLight ? realtime.latestLight.lightIntensity.toFixed(1) : '—' }}
           <span class="unit">lux</span>
         </p>
-        <p class="lux-meta mono">
-          {{ isMockMode ? 'Mock' : 'Live' }}
-          · {{ threshold?.lightThresholdOn ?? '—' }} / {{ threshold?.lightThresholdOff ?? '—' }}
+        <p class="hero-meta mono">{{ isMockMode ? 'Mock 定时模拟' : '后端 WebSocket' }}</p>
+      </div>
+      <div class="hero-side">
+        <p class="threshold-hint">
+          开灯 &lt; {{ threshold?.lightThresholdOn ?? '—' }} lux<br />
+          关灯 &gt; {{ threshold?.lightThresholdOff ?? '—' }} lux
         </p>
-      </RouterLink>
-      <div class="kpi-row">
+        <RouterLink to="/threshold" class="hero-link" @click.stop>修改阈值 →</RouterLink>
+      </div>
+    </RouterLink>
+
+    <div v-if="stats" class="ui-fill-body dashboard-body slide-up-enter-active slide-up-delay-1">
+      <section class="ops ui-card">
+        <h3 class="ui-section-title">值班待办</h3>
+        <div class="ops-grid">
+          <RouterLink
+            :to="{ path: '/alarms', query: { status: 'ACTIVE' } }"
+            class="ops-item ui-link-card"
+          >
+            <p class="ops-label">活跃告警</p>
+            <strong class="ui-stat-value bad">{{ alarmTile.value }}</strong>
+          </RouterLink>
+
+          <div class="ops-item">
+            <p class="ops-label">今日自动开关</p>
+            <strong class="ui-stat-value on">{{ autoSwitchToday }}</strong>
+            <RouterLink to="/logs" class="ops-link">控制日志 →</RouterLink>
+          </div>
+
+          <div class="ops-item ops-item-list">
+            <p class="ops-label">离线设备（{{ offlineDevices.length }}）</p>
+            <div class="offline-panel">
+              <ul v-if="offlineDevices.length" class="offline-list">
+                <li v-for="d in offlineDevices" :key="d.id">
+                  <RouterLink :to="`/devices`">{{ d.deviceName }}</RouterLink>
+                  <span class="mono sn">{{ d.deviceSn }}</span>
+                </li>
+              </ul>
+              <p v-else class="ops-empty">全部在线 ✓</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="stat-grid">
         <RouterLink
           v-for="tile in tiles"
           :key="tile.label"
           :to="{ path: tile.to, query: tile.query }"
-          class="kpi ui-link-card"
+          class="stat ui-card ui-card-compact ui-link-card"
         >
-          <p class="kpi-label">{{ tile.label }}</p>
+          <p class="stat-label">{{ tile.label }}</p>
           <strong :class="['ui-stat-value', tile.tone]">{{ tile.value }}</strong>
+        </RouterLink>
+
+        <RouterLink
+          :to="{ path: '/alarms', query: { status: 'ACTIVE' } }"
+          class="stat ui-card ui-card-compact ui-link-card"
+        >
+          <p class="stat-label">{{ alarmTile.label }}</p>
+          <strong class="ui-stat-value bad">{{ alarmTile.value }}</strong>
         </RouterLink>
       </div>
     </div>
-
-    <section class="dash-map">
-      <StreetlightMap variant="command" />
-    </section>
   </div>
 </template>
 
 <style scoped>
-.dashboard-page {
-  gap: var(--space-2);
-}
-
-.dash-top {
-  flex-shrink: 0;
-  display: grid;
-  grid-template-columns: 168px minmax(0, 1fr);
-  gap: var(--space-2);
-}
-
-.lux-chip {
+.hero {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 10px 14px;
-  border-radius: var(--radius-md);
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--space-6);
+  padding: var(--space-6) var(--space-8);
   background: linear-gradient(135deg, #1d1d1f 0%, #2c2c2e 100%);
   color: #f5f5f7;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
   text-decoration: none;
-  box-shadow: var(--shadow-sm);
 }
 
-.lux-label {
+.eyebrow {
   margin: 0;
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 600;
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.55);
 }
 
-.lux-value {
-  margin: 2px 0 0;
-  font-size: 22px;
+.hero-value {
+  margin: var(--space-2) 0 0;
+  font-size: clamp(36px, 5vw, 56px);
   font-weight: 600;
   color: var(--sodium);
-  line-height: 1.1;
+  line-height: 1;
+  letter-spacing: -0.03em;
 }
 
 .unit {
-  font-size: 11px;
-  margin-left: 4px;
+  font-size: var(--text-xl);
+  margin-left: var(--space-2);
   opacity: 0.65;
+  font-weight: 500;
 }
 
-.lux-meta {
-  margin: 4px 0 0;
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.42);
+.hero-meta {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.4);
 }
 
-.kpi-row {
+.hero-side {
+  text-align: right;
+}
+
+.threshold-hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.hero-link {
+  display: inline-block;
+  margin-top: var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--sodium);
+  text-decoration: none;
+}
+
+.dashboard-body {
+  min-height: 0;
+}
+
+.dashboard-body .ops {
+  flex-shrink: 0;
+}
+
+.dashboard-body .stat-grid {
+  flex-shrink: 0;
+}
+
+.ops-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: var(--space-2);
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
 }
 
-.kpi {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 10px 12px;
+.ops-item {
+  padding: var(--space-4);
+  background: var(--paper);
   border-radius: var(--radius-md);
-  background: var(--panel);
-  box-shadow: var(--shadow-sm), var(--shadow-inset);
+  display: block;
   text-decoration: none;
   color: inherit;
 }
 
-.kpi-label {
+.ops-item-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ops-label {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.ops-item .ui-stat-value {
+  display: block;
+  margin-top: var(--space-2);
+}
+
+.ops-link {
+  display: inline-block;
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.offline-panel {
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: min(160px, 24vh);
+  margin-top: var(--space-2);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.offline-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.offline-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  font-size: var(--text-sm);
+  border-bottom: 1px solid var(--line);
+}
+
+.offline-list li:last-child {
+  border-bottom: none;
+}
+
+.offline-list a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.sn {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+
+.ops-empty {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--online);
+  font-weight: 500;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.stat {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.stat-label {
+  margin: 0;
+  font-size: var(--text-sm);
   color: var(--ink-soft);
   font-weight: 500;
 }
 
-.kpi .ui-stat-value {
-  margin-top: 0;
-  font-size: 20px;
+.stat .ui-stat-value {
+  display: block;
+  margin-top: var(--space-2);
 }
 
-.dash-map {
-  flex: 1 1 0;
-  min-height: 0;
-  display: flex;
-}
-
-@media (max-width: 1100px) {
-  .dash-top {
-    grid-template-columns: 1fr;
+@media (max-width: 800px) {
+  .hero {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: var(--space-5);
   }
 
-  .kpi-row {
-    grid-template-columns: repeat(3, 1fr);
+  .hero-side {
+    text-align: left;
+  }
+
+  .stat-grid,
+  .ops-grid {
+    grid-template-columns: 1fr 1fr;
   }
 }
 </style>

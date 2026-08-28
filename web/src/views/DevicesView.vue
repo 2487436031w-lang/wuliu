@@ -4,11 +4,10 @@ import { RouterLink, useRoute } from 'vue-router'
 import { api } from '../api/client'
 import { useLatestRequest, useRowAction } from '../composables/useLatestRequest'
 import { useRealtimeStore } from '../stores/realtime'
-import { compareEntityId } from '../utils/ids'
 import type { Device } from '../types/domain'
 
 function sortDevices(list: Device[]): Device[] {
-  return [...list].sort((a, b) => compareEntityId(a.id, b.id))
+  return [...list].sort((a, b) => a.id - b.id)
 }
 
 const route = useRoute()
@@ -22,7 +21,7 @@ const msg = ref('')
 const form = reactive({ deviceName: '', deviceSn: '' })
 const filter = reactive({ deviceName: '', status: '', onlineStatus: '' })
 /** 新建编组时的临时输入（按设备 id） */
-const draftGroup = reactive<Record<string, string>>({})
+const draftGroup = reactive<Record<number, string>>({})
 
 function applyRouteFilter() {
   filter.status = typeof route.query.status === 'string' ? route.query.status : ''
@@ -32,7 +31,7 @@ function applyRouteFilter() {
 
 async function load() {
   const res = await listRequest.run(() =>
-    api.listDevices({ page: 1, pageSize: 200, ...filter }),
+    api.listDevices({ page: 1, pageSize: 50, ...filter }),
   )
   if (!res || res.code !== 200) return
   records.value = sortDevices(res.data.records)
@@ -217,7 +216,7 @@ async function setGroupMode(groupName: string, mode: 'AUTO' | 'MANUAL') {
   })
 }
 
-async function remove(id: string) {
+async function remove(id: number) {
   await rowAction.run(id, async () => {
     await api.deleteDevice(id)
     msg.value = '已删除'

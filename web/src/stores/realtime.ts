@@ -7,7 +7,7 @@ import { isMockMode, wsBrokerUrl } from '../config/runtime'
 import type { AlarmLog, LatestLight } from '../types/domain'
 import { useAuthStore } from './auth'
 
-/** 后端 deviceId 为字符串（含雪花 ID），不可 Number() */
+/** 后端部分路径将 deviceId 序列化为 string，前端统一为 number */
 function normalizeLatest(raw: LatestLight & { deviceId?: number | string }): LatestLight {
   return normalizeLatestLight(raw as unknown as Record<string, unknown>)
 }

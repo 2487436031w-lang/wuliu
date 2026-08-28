@@ -1,4 +1,3 @@
-import { entityId } from '../utils/ids'
 import type {
   AlarmLog,
   AlarmStatistics,
@@ -39,7 +38,7 @@ export function normalizeDeviceDetail(raw: Record<string, unknown>): DeviceDetai
 
 export function normalizeDevice(raw: Record<string, unknown>): Device {
   return {
-    id: entityId(raw.id),
+    id: asNumber(raw.id),
     deviceName: String(raw.deviceName ?? ''),
     deviceSn: String(raw.deviceSn ?? ''),
     status: raw.status as Device['status'],
@@ -59,7 +58,7 @@ export function normalizeDevice(raw: Record<string, unknown>): Device {
 export function normalizeLightReading(raw: Record<string, unknown>): LightReading {
   return {
     id: asNumber(raw.id),
-    deviceId: entityId(raw.deviceId),
+    deviceId: asNumber(raw.deviceId),
     deviceName: String(raw.deviceName ?? ''),
     lightIntensity: Number(raw.lightIntensity),
     createdAt: String(raw.createdAt ?? ''),
@@ -68,7 +67,7 @@ export function normalizeLightReading(raw: Record<string, unknown>): LightReadin
 
 export function normalizeLatestLight(raw: Record<string, unknown>): LatestLight {
   return {
-    deviceId: entityId(raw.deviceId),
+    deviceId: asNumber(raw.deviceId),
     lightIntensity: Number(raw.lightIntensity),
     createdAt: String(raw.createdAt ?? ''),
   }
@@ -77,7 +76,7 @@ export function normalizeLatestLight(raw: Record<string, unknown>): LatestLight 
 export function normalizeAlarm(raw: Record<string, unknown>): AlarmLog {
   return {
     id: String(raw.id ?? ''),
-    deviceId: entityId(raw.deviceId),
+    deviceId: asNumber(raw.deviceId),
     deviceName: String(raw.deviceName ?? ''),
     alarmType: String(raw.alarmType ?? ''),
     message: String(raw.message ?? ''),
@@ -90,7 +89,7 @@ export function normalizeAlarm(raw: Record<string, unknown>): AlarmLog {
 export function normalizeControlLog(raw: Record<string, unknown>): ControlLog {
   return {
     id: asNumber(raw.id),
-    deviceId: raw.deviceId == null || raw.deviceId === '' ? null : entityId(raw.deviceId),
+    deviceId: asNullableNumber(raw.deviceId),
     deviceName: (raw.deviceName as string | null) ?? null,
     operatorId: asNullableNumber(raw.operatorId),
     operatorName: (raw.operatorName as string | null) ?? null,

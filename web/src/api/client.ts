@@ -106,23 +106,23 @@ function createHttpApi(): StreetLightApi {
       }),
     listDevices: (params) =>
       httpPage('/devices' + q({ page: 1, pageSize: 10, ...params }), {}, normalizeDevice),
-    getDevice: (id) => httpData(`/devices/${encodeURIComponent(String(id))}`, {}, normalizeDeviceDetail),
+    getDevice: (id) => httpData(`/devices/${id}`, {}, normalizeDeviceDetail),
     addDevice: (body) => http('/devices', { method: 'POST', body: JSON.stringify(body) }),
     updateDevice: (id, body) =>
-      http(`/devices/${encodeURIComponent(String(id))}`, { method: 'PUT', body: JSON.stringify(body) }),
+      http(`/devices/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     setDeviceLocation: (id, body) =>
-      http(`/devices/${encodeURIComponent(String(id))}/location`, { method: 'PUT', body: JSON.stringify(body) }),
-    deleteDevice: (id) => http(`/devices/${encodeURIComponent(String(id))}`, { method: 'DELETE' }),
+      http(`/devices/${Number(id)}/location`, { method: 'PUT', body: JSON.stringify(body) }),
+    deleteDevice: (id) => http(`/devices/${id}`, { method: 'DELETE' }),
     deviceStatistics: () => httpData('/devices/statistics', {}, normalizeDeviceStatistics),
     switchDevice: (id, status) =>
-      http(`/devices/${encodeURIComponent(String(id))}/switch`, { method: 'POST', body: JSON.stringify({ status }) }),
+      http(`/devices/${Number(id)}/switch`, { method: 'POST', body: JSON.stringify({ status }) }),
     setControlMode: (id, mode) =>
-      http(`/devices/${encodeURIComponent(String(id))}/control-mode`, {
+      http(`/devices/${Number(id)}/control-mode`, {
         method: 'PUT',
         body: JSON.stringify({ mode }),
       }),
     setDeviceGroup: (id, groupName) =>
-      http(`/devices/${encodeURIComponent(String(id))}/group`, {
+      http(`/devices/${Number(id)}/group`, {
         method: 'PUT',
         body: JSON.stringify({ groupName }),
       }),
@@ -139,7 +139,7 @@ function createHttpApi(): StreetLightApi {
     listLightReadings: (params) =>
       httpPage('/light-readings' + q({ page: 1, pageSize: 10, ...params }), {}, normalizeLightReading),
     latestLight: (deviceId) =>
-      httpData(`/light-readings/latest/${encodeURIComponent(String(deviceId))}`, {}, normalizeLatestLight),
+      httpData(`/light-readings/latest/${Number(deviceId)}`, {}, normalizeLatestLight),
     lightTrend: (params) =>
       http(`/light-readings/trend${q(params)}`),
     listAlarms: (params) =>
@@ -167,7 +167,7 @@ function createHttpApi(): StreetLightApi {
     deleteThresholdOverride: (scopeType, scopeKey) =>
       http(`/threshold-config/overrides${q({ scopeType, scopeKey })}`, { method: 'DELETE' }),
     getEffectiveThreshold: (deviceId) =>
-      httpData(`/threshold-config/effective/${encodeURIComponent(String(deviceId))}`, {}, normalizeEffectiveThreshold),
+      httpData(`/threshold-config/effective/${Number(deviceId)}`, {}, normalizeEffectiveThreshold),
     listControlLogs: (params) =>
       httpPage('/control-logs' + q({ page: 1, pageSize: 10, ...params }), {}, normalizeControlLog),
   }
