@@ -25,7 +25,8 @@ export interface UserSession {
 }
 
 export interface Device {
-  id: number
+  /** 雪花 ID，保持字符串 */
+  id: string
   deviceName: string
   deviceSn: string
   status: 'ON' | 'OFF'
@@ -61,14 +62,14 @@ export interface DeviceStatistics {
 
 export interface LightReading {
   id: number
-  deviceId: number
+  deviceId: string
   deviceName: string
   lightIntensity: number
   createdAt: string
 }
 
 export interface LatestLight {
-  deviceId: number
+  deviceId: string
   lightIntensity: number
   createdAt: string
 }
@@ -81,7 +82,7 @@ export interface TrendPoint {
 export interface AlarmLog {
   /** 雪花 ID，必须当字符串用，Number() 会丢精度导致处理失败 */
   id: string
-  deviceId: number
+  deviceId: string
   deviceName: string
   alarmType: string
   message: string
@@ -123,7 +124,7 @@ export interface EffectiveThreshold {
 
 export interface ControlLog {
   id: number
-  deviceId: number | null
+  deviceId: string | null
   deviceName: string | null
   operatorId: number | null
   operatorName: string | null

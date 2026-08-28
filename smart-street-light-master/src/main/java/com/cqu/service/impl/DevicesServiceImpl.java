@@ -17,6 +17,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.cqu.vo.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
@@ -56,6 +57,12 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
 
     @Autowired
     private MqttConfig mqttConfig;
+
+    /** 演示灯廊无板端回执时立即确认指令；真机 SN-RM-001 仍走 PENDING。 */
+    @Value("${streetlight.demo.virtual-ack:false}")
+    private boolean virtualAck;
+
+    private static final String HARDWARE_SN = "SN-RM-001";
 
     @Override
     public PageResult<DeviceVO> pageDevices(int page, int pageSize, String deviceName, String status, String onlineStatus) {
@@ -320,12 +327,23 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
 
         // 先下发 MQTT，成功后再记 PENDING（避免 Broker 未连时误报 30s 超时）
         String command = "MANUAL_" + status;
+        boolean hardware = HARDWARE_SN.equals(device.getDeviceSn());
         boolean published = mqttConfig.publishCommand(device.getDeviceSn(), command);
+        if (hardware) {
+            if (!published) {
+                throw new RuntimeException("MQTT 未连接，指令未下发到板端，请检查 EMQX 与后端 MQTT 配置");
+            }
+            controlLogsService.recordPendingCommand(deviceId, command, "MANUAL", status);
+            return command;
+        }
+        if (virtualAck) {
+            controlLogsService.recordLog(deviceId, command, "SUCCESS", "MANUAL");
+            return command;
+        }
         if (!published) {
             throw new RuntimeException("MQTT 未连接，指令未下发到板端，请检查 EMQX 与后端 MQTT 配置");
         }
         controlLogsService.recordPendingCommand(deviceId, command, "MANUAL", status);
-
         return command;
     }
 

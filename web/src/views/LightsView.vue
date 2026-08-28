@@ -5,6 +5,7 @@ import CalendarFilter, { type DayMeta } from '../components/CalendarFilter.vue'
 import { api } from '../api/client'
 import { useRealtimeStore } from '../stores/realtime'
 import type { Device, LightReading, ThresholdConfig, ThresholdOverride, TrendPoint } from '../types/domain'
+import { compareEntityId } from '../utils/ids'
 import {
   dateKey,
   dayRange,
@@ -21,7 +22,7 @@ const realtime = useRealtimeStore()
 const devices = ref<Device[]>([])
 const viewMode = ref<ViewMode>('all')
 const groupName = ref('')
-const deviceId = ref<number | null>(null)
+const deviceId = ref<string | null>(null)
 const records = ref<LightReading[]>([])
 const trend = ref<TrendPoint[]>([])
 const monthReadings = ref<LightReading[]>([])
@@ -134,7 +135,7 @@ function showXLabel(i: number) {
   return i % xLabelStep.value === 0
 }
 
-function scopeQuery(): { deviceId?: number; groupName?: string } {
+function scopeQuery(): { deviceId?: string; groupName?: string } {
   if (viewMode.value === 'device' && deviceId.value != null) return { deviceId: deviceId.value }
   if (viewMode.value === 'group' && groupName.value) return { groupName: groupName.value }
   return {}
@@ -172,7 +173,7 @@ function onBarLeave() {
 async function loadDevices() {
   const res = await api.listDevices({ page: 1, pageSize: 100 })
   if (res.code !== 200) return
-  devices.value = [...res.data.records].sort((a, b) => a.id - b.id)
+  devices.value = [...res.data.records].sort((a, b) => compareEntityId(a.id, b.id))
   if (!groupName.value && groupNames.value.length) groupName.value = groupNames.value[0]
   if (devices.value.length) {
     const ids = new Set(devices.value.map((d) => d.id))
