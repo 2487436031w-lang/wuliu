@@ -128,6 +128,10 @@ public class GreenhouseServiceImpl implements IGreenhouseService {
         out.put("ridgeHeightM", GreenhouseGeometry.RIDGE_HEIGHT_M);
         out.put("measurePlaneZ", GreenhouseGeometry.measurePlaneZ(zoneId));
         out.put("coordinateNoteZh", "西南角原点 · 长轴东西 · 南向采光");
+        double[] sun = GreenhouseGeometry.solarElevationAzimuth(minute, zone.getClimateProfileId());
+        out.put("solarElevationDeg", round(sun[0]));
+        out.put("solarAzimuthDeg", round(sun[1]));
+        out.put("sunVisible", sun[0] > 0.5);
         GhRecipe recipe = recipeMapper.selectOne(new LambdaQueryWrapper<GhRecipe>()
                 .eq(GhRecipe::getRecipeId, zone.getRecipeId()));
         if (recipe != null) {

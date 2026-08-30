@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import type { GhEffectiveLight } from '../api/greenhouse'
@@ -16,32 +16,60 @@ let controls: OrbitControls | null = null
 let heatMesh: THREE.Mesh | null = null
 let shadeClothA: THREE.Mesh | null = null
 let shadeClothB: THREE.Mesh | null = null
+let sunLight: THREE.DirectionalLight | null = null
+let sunArrow: THREE.ArrowHelper | null = null
+let sunGroup: THREE.Group | null = null
 let lampGroup: THREE.Group | null = null
 let sensorGroup: THREE.Group | null = null
 let structureKey = ''
 let raf = 0
 let disposed = false
 
-/** v1.1 高架床 */
+const Z_L0 = 0.55
+const Z_L1 = 1.25
+
 const BEDS_A = [
-  { x0: 0.5, x1: 7.5, y0: 1.0, y1: 1.8, crop: 'pot' as const },
-  { x0: 0.5, x1: 7.5, y0: 3.1, y1: 3.9, crop: 'pot' as const },
-  { x0: 0.5, x1: 7.5, y0: 5.2, y1: 6.0, crop: 'pot' as const },
+  { x0: 0.5, x1: 7.5, y0: 1.0, y1: 1.8 },
+  { x0: 0.5, x1: 7.5, y0: 3.1, y1: 3.9 },
+  { x0: 0.5, x1: 7.5, y0: 5.2, y1: 6.0 },
 ]
 const BEDS_B = [
-  { x0: 8.5, x1: 15.5, y0: 1.0, y1: 1.8, crop: 'mat' as const },
-  { x0: 8.5, x1: 15.5, y0: 3.1, y1: 3.9, crop: 'mat' as const },
-  { x0: 8.5, x1: 15.5, y0: 5.2, y1: 6.0, crop: 'mat' as const },
+  { x0: 8.5, x1: 15.5, y0: 1.0, y1: 1.8 },
+  { x0: 8.5, x1: 15.5, y0: 3.1, y1: 3.9 },
+  { x0: 8.5, x1: 15.5, y0: 5.2, y1: 6.0 },
 ]
-const Z_BED = 0.55
 
+const sunHud = computed(() => {
+  const el = props.light?.solarElevationDeg
+  const az = props.light?.solarAzimuthDeg
+  if (el == null || az == null) return '日光：等待仿真…'
+  const dir =
+    az < 135 ? '偏东' : az < 225 ? '正南为主' : '偏西'
+  return `太阳高度 ${Number(el).toFixed(0)}° · 方位 ${Number(az).toFixed(0)}°（${dir}）`
+})
+
+const heatMax = computed(() => {
+  const g = props.light?.grid || []
+  return Math.max(props.light?.recipe?.ppfdHardMax ?? 120, ...g.map((p) => p.ppfd), 1)
+})
+
+/** 蓝→青→黄→红，便于看出分布 */
 function ppfdColor(v: number, maxRef: number): [number, number, number] {
   const t = Math.max(0, Math.min(1, v / Math.max(maxRef, 1)))
-  return [
-    Math.round(18 + t * 210),
-    Math.round(48 + t * 140),
-    Math.round(42 + (1 - t) * 40),
-  ]
+  if (t < 0.25) {
+    const u = t / 0.25
+    return [Math.round(20 + u * 20), Math.round(40 + u * 100), Math.round(120 + u * 80)]
+  }
+  if (t < 0.5) {
+    const u = (t - 0.25) / 0.25
+    return [Math.round(40 + u * 40), Math.round(140 + u * 80), Math.round(200 - u * 80)]
+  }
+  if (t < 0.75) {
+    const u = (t - 0.5) / 0.25
+    return [Math.round(80 + u * 140), Math.round(220 - u * 40), Math.round(120 - u * 80)]
+  }
+  const u = (t - 0.75) / 0.25
+  return [Math.round(220 + u * 30), Math.round(180 - u * 120), Math.round(40 - u * 20)]
 }
 
 function makeShadeTexture(): THREE.CanvasTexture {
@@ -49,10 +77,9 @@ function makeShadeTexture(): THREE.CanvasTexture {
   c.width = 64
   c.height = 64
   const ctx = c.getContext('2d')!
-  ctx.fillStyle = '#1e2822'
+  ctx.fillStyle = '#1a221c'
   ctx.fillRect(0, 0, 64, 64)
-  ctx.strokeStyle = '#3a4a40'
-  ctx.lineWidth = 1
+  ctx.strokeStyle = '#4a5a50'
   for (let i = 0; i < 64; i += 4) {
     ctx.beginPath()
     ctx.moveTo(i, 0)
@@ -65,21 +92,21 @@ function makeShadeTexture(): THREE.CanvasTexture {
   }
   const tex = new THREE.CanvasTexture(c)
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping
-  tex.repeat.set(12, 8)
+  tex.repeat.set(14, 10)
   return tex
 }
 
 function buildScene(el: HTMLDivElement) {
   const w = el.clientWidth || 800
-  const h = el.clientHeight || 420
+  const h = el.clientHeight || 460
   scene = new THREE.Scene()
-  scene.background = new THREE.Color(0xd8e6dc)
-  scene.fog = new THREE.Fog(0xd8e6dc, 22, 48)
+  scene.background = new THREE.Color(0xc5d6ca)
+  scene.fog = new THREE.Fog(0xc5d6ca, 24, 55)
 
-  camera = new THREE.PerspectiveCamera(42, w / h, 0.1, 100)
-  camera.position.set(12, 10, 16)
+  camera = new THREE.PerspectiveCamera(40, w / h, 0.1, 120)
+  camera.position.set(14, 11, 18)
 
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
+  renderer = new THREE.WebGLRenderer({ antialias: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.setSize(w, h)
   el.innerHTML = ''
@@ -87,19 +114,17 @@ function buildScene(el: HTMLDivElement) {
 
   controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true
-  controls.target.set(8, 1.2, 3.5)
-  controls.maxPolarAngle = Math.PI * 0.48
+  controls.target.set(8, 1.3, 3.5)
+  controls.maxPolarAngle = Math.PI * 0.49
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.5))
-  const sun = new THREE.DirectionalLight(0xfff2d6, 0.95)
-  sun.position.set(2, 12, -10)
-  scene.add(sun)
-  const fill = new THREE.DirectionalLight(0xdde8f0, 0.25)
-  fill.position.set(-4, 6, 8)
-  scene.add(fill)
+  scene.add(new THREE.AmbientLight(0xffffff, 0.35))
+  sunLight = new THREE.DirectionalLight(0xfff1c8, 1.1)
+  sunLight.position.set(2, 14, -12)
+  scene.add(sunLight)
+  scene.add(new THREE.HemisphereLight(0xe8f4d8, 0x5a6a50, 0.45))
 
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(48, 28),
+    new THREE.PlaneGeometry(50, 30),
     new THREE.MeshStandardMaterial({ color: 0x6b7a5a, roughness: 0.95 }),
   )
   ground.rotation.x = -Math.PI / 2
@@ -107,8 +132,10 @@ function buildScene(el: HTMLDivElement) {
 
   lampGroup = new THREE.Group()
   sensorGroup = new THREE.Group()
+  sunGroup = new THREE.Group()
   scene.add(lampGroup)
   scene.add(sensorGroup)
+  scene.add(sunGroup)
 
   const loop = () => {
     if (disposed) return
@@ -119,51 +146,99 @@ function buildScene(el: HTMLDivElement) {
   loop()
 }
 
-function makeLabelSprite(text: string): THREE.Sprite {
+function makeLabelSprite(text: string, scaleX = 3.4): THREE.Sprite {
   const canvas = document.createElement('canvas')
-  canvas.width = 320
+  canvas.width = 360
   canvas.height = 64
   const ctx = canvas.getContext('2d')!
-  ctx.clearRect(0, 0, 320, 64)
-  ctx.fillStyle = 'rgba(16,32,24,0.72)'
-  ctx.fillRect(8, 12, 304, 40)
+  ctx.fillStyle = 'rgba(16,32,24,0.78)'
+  ctx.fillRect(6, 10, 348, 44)
   ctx.fillStyle = '#e8f2ea'
   ctx.font = '600 20px "Source Sans 3", sans-serif'
   ctx.textAlign = 'center'
-  ctx.fillText(text, 160, 40)
-  const tex = new THREE.CanvasTexture(canvas)
-  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false })
-  const spr = new THREE.Sprite(mat)
-  spr.scale.set(3.6, 0.72, 1)
+  ctx.fillText(text, 180, 40)
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true, depthTest: false }))
+  spr.scale.set(scaleX, 0.7, 1)
   return spr
 }
 
-function addCropPots(bed: (typeof BEDS_A)[0], parent: THREE.Group) {
+function addStackedCrops(bed: { x0: number; x1: number; y0: number; y1: number }, group: THREE.Group, dual: boolean) {
+  const bedMat = new THREE.MeshStandardMaterial({ color: 0x4a3a2a, roughness: 0.9 })
+  const legMat = new THREE.MeshStandardMaterial({ color: 0x333938, metalness: 0.35, roughness: 0.5 })
   const potMat = new THREE.MeshStandardMaterial({ color: 0x5c4030, roughness: 0.85 })
-  const leafMat = new THREE.MeshStandardMaterial({ color: 0x3d7a52, roughness: 0.7 })
-  const x0 = bed.x0 + 0.35
-  const x1 = bed.x1 - 0.35
-  for (let x = x0; x <= x1; x += 0.55) {
-    for (const row of [0.28, 0.52]) {
-      const z = bed.y0 + (bed.y1 - bed.y0) * row
-      const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.12, 8), potMat)
-      pot.position.set(x, Z_BED + 0.06, z)
-      parent.add(pot)
-      const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.28, 6), leafMat)
-      leaf.position.set(x, Z_BED + 0.28, z)
-      parent.add(leaf)
+  const leafMat = new THREE.MeshStandardMaterial({ color: 0x3d7a52, roughness: 0.65 })
+  const trayMat = new THREE.MeshStandardMaterial({ color: 0xb8cfc0, roughness: 0.75 })
+  const bw = bed.x1 - bed.x0
+  const bd = bed.y1 - bed.y0
+  const cx = (bed.x0 + bed.x1) / 2
+  const cz = (bed.y0 + bed.y1) / 2
+
+  const deck0 = new THREE.Mesh(new THREE.BoxGeometry(bw, 0.07, bd), bedMat)
+  deck0.position.set(cx, Z_L0, cz)
+  group.add(deck0)
+
+  for (const [ox, oz] of [
+    [-bw / 2 + 0.08, -bd / 2 + 0.08],
+    [bw / 2 - 0.08, -bd / 2 + 0.08],
+    [-bw / 2 + 0.08, bd / 2 - 0.08],
+    [bw / 2 - 0.08, bd / 2 - 0.08],
+  ] as const) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, dual ? Z_L1 : Z_L0, 6), legMat)
+    leg.position.set(cx + ox, (dual ? Z_L1 : Z_L0) / 2, cz + oz)
+    group.add(leg)
+  }
+
+  for (let x = bed.x0 + 0.35; x < bed.x1 - 0.2; x += 0.5) {
+    for (const row of [0.3, 0.7]) {
+      const z = bed.y0 + bd * row
+      const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.11, 8), potMat)
+      pot.position.set(x, Z_L0 + 0.08, z)
+      group.add(pot)
+      const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.26, 6), leafMat)
+      leaf.position.set(x, Z_L0 + 0.28, z)
+      group.add(leaf)
+    }
+  }
+
+  if (dual) {
+    const deck1 = new THREE.Mesh(new THREE.BoxGeometry(bw - 0.2, 0.05, bd - 0.08), bedMat)
+    deck1.position.set(cx, Z_L1, cz)
+    group.add(deck1)
+    for (let i = 0; i < 7; i++) {
+      const tray = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.05, 0.28), trayMat)
+      tray.position.set(bed.x0 + 0.7 + i * 0.85, Z_L1 + 0.06, cz)
+      group.add(tray)
+      const sprout = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), leafMat)
+      sprout.position.set(bed.x0 + 0.7 + i * 0.85, Z_L1 + 0.12, cz)
+      group.add(sprout)
     }
   }
 }
 
-function addCropMat(bed: (typeof BEDS_B)[0], parent: THREE.Group) {
+function addMatBed(bed: { x0: number; x1: number; y0: number; y1: number }, group: THREE.Group) {
+  const bedMat = new THREE.MeshStandardMaterial({ color: 0x4a3a2a, roughness: 0.9 })
   const mat = new THREE.MeshStandardMaterial({ color: 0x2f5d3a, roughness: 0.9 })
-  const pad = new THREE.Mesh(
-    new THREE.BoxGeometry(bed.x1 - bed.x0 - 0.15, 0.06, bed.y1 - bed.y0 - 0.12),
-    mat,
-  )
-  pad.position.set((bed.x0 + bed.x1) / 2, Z_BED + 0.08, (bed.y0 + bed.y1) / 2)
-  parent.add(pad)
+  const legMat = new THREE.MeshStandardMaterial({ color: 0x333938, metalness: 0.35, roughness: 0.5 })
+  const bw = bed.x1 - bed.x0
+  const bd = bed.y1 - bed.y0
+  const cx = (bed.x0 + bed.x1) / 2
+  const cz = (bed.y0 + bed.y1) / 2
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(bw, 0.07, bd), bedMat)
+  deck.position.set(cx, Z_L0, cz)
+  group.add(deck)
+  for (const [ox, oz] of [
+    [-bw / 2 + 0.08, -bd / 2 + 0.08],
+    [bw / 2 - 0.08, -bd / 2 + 0.08],
+    [-bw / 2 + 0.08, bd / 2 - 0.08],
+    [bw / 2 - 0.08, bd / 2 - 0.08],
+  ] as const) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, Z_L0, 6), legMat)
+    leg.position.set(cx + ox, Z_L0 / 2, cz + oz)
+    group.add(leg)
+  }
+  const pad = new THREE.Mesh(new THREE.BoxGeometry(bw - 0.15, 0.08, bd - 0.12), mat)
+  pad.position.set(cx, Z_L0 + 0.08, cz)
+  group.add(pad)
 }
 
 function rebuildStructure(light: GhEffectiveLight) {
@@ -172,12 +247,11 @@ function rebuildStructure(light: GhEffectiveLight) {
   const W = Number(light.widthM) || 7
   const H = Number(light.ridgeHeightM) || 3.8
   const G = Number(light.gutterHeightM) || 2.8
-  const key = `${L}x${W}x${H}x${G}-v1.1`
+  const key = `${L}x${W}x${H}-v1.2`
   if (key === structureKey) return
   structureKey = key
 
-  const toRemove = scene.children.filter((c) => c.userData.structure)
-  toRemove.forEach((c) => {
+  scene.children.filter((c) => c.userData.structure).forEach((c) => {
     scene!.remove(c)
     c.traverse((obj) => {
       if (obj instanceof THREE.Mesh) {
@@ -186,18 +260,12 @@ function rebuildStructure(light: GhEffectiveLight) {
         if (Array.isArray(m)) m.forEach((x) => x.dispose())
         else m.dispose()
       }
-      if (obj instanceof THREE.Sprite) {
-        const m = obj.material as THREE.SpriteMaterial
-        m.map?.dispose()
-        m.dispose()
-      }
     })
   })
 
   const frameMat = new THREE.MeshStandardMaterial({ color: 0x3d4a40, metalness: 0.2, roughness: 0.6 })
-  const archCount = 9
-  for (let i = 0; i < archCount; i++) {
-    const x = (i / (archCount - 1)) * L
+  for (let i = 0; i < 9; i++) {
+    const x = (i / 8) * L
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(x, 0.05, 0),
       new THREE.Vector3(x, G, W * 0.15),
@@ -209,126 +277,111 @@ function rebuildStructure(light: GhEffectiveLight) {
     tube.userData.structure = true
     scene.add(tube)
   }
-  for (const z of [0, W]) {
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(L, 0.06, 0.06), frameMat)
-    rail.position.set(L / 2, G * 0.55, z)
-    rail.userData.structure = true
-    scene.add(rail)
-  }
 
   const skin = new THREE.Mesh(
-    new THREE.BoxGeometry(L * 0.98, H * 0.92, W * 0.98),
+    new THREE.BoxGeometry(L * 0.98, H * 0.9, W * 0.98),
     new THREE.MeshPhysicalMaterial({
       color: 0xe8f4ec,
       transparent: true,
-      opacity: 0.1,
-      roughness: 0.3,
+      opacity: 0.08,
       transmission: 0.55,
-      thickness: 0.35,
+      thickness: 0.3,
+      roughness: 0.25,
     }),
   )
-  skin.position.set(L / 2, H * 0.46, W / 2)
+  skin.position.set(L / 2, H * 0.45, W / 2)
   skin.userData.structure = true
   scene.add(skin)
 
-  const cropGroup = new THREE.Group()
-  cropGroup.userData.structure = true
-  const bedMat = new THREE.MeshStandardMaterial({ color: 0x4a3a2a, roughness: 0.9 })
-  const legMat = new THREE.MeshStandardMaterial({ color: 0x2a3030, metalness: 0.4, roughness: 0.5 })
-  for (const b of [...BEDS_A, ...BEDS_B]) {
-    const bw = b.x1 - b.x0
-    const bd = b.y1 - b.y0
-    const top = new THREE.Mesh(new THREE.BoxGeometry(bw, 0.08, bd), bedMat)
-    top.position.set((b.x0 + b.x1) / 2, Z_BED, (b.y0 + b.y1) / 2)
-    cropGroup.add(top)
-    for (const [ox, oz] of [
-      [-bw / 2 + 0.1, -bd / 2 + 0.1],
-      [bw / 2 - 0.1, -bd / 2 + 0.1],
-      [-bw / 2 + 0.1, bd / 2 - 0.1],
-      [bw / 2 - 0.1, bd / 2 - 0.1],
-    ] as const) {
-      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, Z_BED, 6), legMat)
-      leg.position.set((b.x0 + b.x1) / 2 + ox, Z_BED / 2, (b.y0 + b.y1) / 2 + oz)
-      cropGroup.add(leg)
-    }
-    if (b.crop === 'pot') addCropPots(b, cropGroup)
-    else addCropMat(b, cropGroup)
-  }
-
-  // A 区 L1 炼苗搁架（中/北床上方）
-  const shelfMat = new THREE.MeshStandardMaterial({ color: 0x6a7a6e, roughness: 0.7 })
-  for (const b of [BEDS_A[1], BEDS_A[2]]) {
-    const shelf = new THREE.Mesh(
-      new THREE.BoxGeometry(b.x1 - b.x0 - 0.4, 0.04, b.y1 - b.y0 - 0.1),
-      shelfMat,
-    )
-    shelf.position.set((b.x0 + b.x1) / 2, 1.25, (b.y0 + b.y1) / 2)
-    cropGroup.add(shelf)
-    for (let i = 0; i < 6; i++) {
-      const tray = new THREE.Mesh(
-        new THREE.BoxGeometry(0.35, 0.06, 0.22),
-        new THREE.MeshStandardMaterial({ color: 0xc5d4c8 }),
-      )
-      tray.position.set(b.x0 + 0.8 + i * 0.95, 1.3, (b.y0 + b.y1) / 2)
-      cropGroup.add(tray)
-    }
-  }
-  scene.add(cropGroup)
+  const crops = new THREE.Group()
+  crops.userData.structure = true
+  BEDS_A.forEach((b) => addStackedCrops(b, crops, true))
+  BEDS_B.forEach((b) => addMatBed(b, crops))
+  scene.add(crops)
 
   const aisle = new THREE.Mesh(
-    new THREE.BoxGeometry(1.0, 0.02, W * 0.92),
-    new THREE.MeshStandardMaterial({ color: 0x8a9580, roughness: 0.95 }),
+    new THREE.BoxGeometry(1, 0.02, W * 0.9),
+    new THREE.MeshStandardMaterial({ color: 0x8a9580 }),
   )
-  aisle.position.set(8.0, 0.02, W / 2)
+  aisle.position.set(8, 0.02, W / 2)
   aisle.userData.structure = true
   scene.add(aisle)
 
-  // 北侧外遮阳卷轴盒
-  const boxMat = new THREE.MeshStandardMaterial({ color: 0x2c3330, metalness: 0.3, roughness: 0.55 })
-  for (const [cx, label] of [
-    [4, '外遮阳·西半'],
-    [12, '外遮阳·东半'],
+  for (const [cx, t] of [
+    [4, '外遮阳卷轴·西'],
+    [12, '外遮阳卷轴·东'],
   ] as const) {
-    const box = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.18, 0.22), boxMat)
-    box.position.set(cx, 3.55, W - 0.15)
+    const box = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.16, 0.2), new THREE.MeshStandardMaterial({ color: 0x2c3330 }))
+    box.position.set(cx, 3.55, W - 0.12)
     box.userData.structure = true
     scene.add(box)
-    const spr = makeLabelSprite(label)
-    spr.position.set(cx, 3.85, W - 0.15)
-    spr.userData.structure = true
-    scene.add(spr)
+    const s = makeLabelSprite(t, 3.2)
+    s.position.set(cx, 3.85, W - 0.12)
+    s.userData.structure = true
+    scene.add(s)
   }
 
-  const south = makeLabelSprite('南 · 采光主面')
-  south.position.set(L / 2, 0.7, -0.9)
-  south.userData.structure = true
-  scene.add(south)
-  const north = makeLabelSprite('北 · 遮阳卷轴')
-  north.position.set(L / 2, 0.7, W + 0.9)
-  north.userData.structure = true
-  scene.add(north)
-  const west = makeLabelSprite('西 · 石斛双层')
-  west.position.set(-1.4, 1.4, W / 2)
-  west.userData.structure = true
-  scene.add(west)
-  const east = makeLabelSprite('东 · 金线莲/草莓')
-  east.position.set(L + 1.4, 1.4, W / 2)
-  east.userData.structure = true
-  scene.add(east)
+  for (const [t, p] of [
+    ['南 · 日光入射', [L / 2, 0.75, -1.0]],
+    ['北', [L / 2, 0.75, W + 1.0]],
+    ['西 · 石斛双层', [-1.5, 1.5, W / 2]],
+    ['东 · 金线莲/草莓', [L + 1.5, 1.5, W / 2]],
+  ] as const) {
+    const s = makeLabelSprite(t)
+    s.position.set(p[0], p[1], p[2])
+    s.userData.structure = true
+    scene.add(s)
+  }
 
-  controls!.target.set(L / 2, 1.2, W / 2)
-  camera?.position.set(L * 0.7, H * 1.85, -W * 0.65)
+  controls!.target.set(L / 2, 1.3, W / 2)
+  camera?.position.set(L * 0.65, H * 1.9, -W * 0.7)
+}
+
+function updateSun(light: GhEffectiveLight) {
+  if (!scene || !sunGroup || !sunLight) return
+  while (sunGroup.children.length) sunGroup.remove(sunGroup.children[0])
+  if (sunArrow) {
+    scene.remove(sunArrow)
+    sunArrow = null
+  }
+
+  const elev = Number(light.solarElevationDeg ?? 0)
+  const az = Number(light.solarAzimuthDeg ?? 180)
+  const L = Number(light.lengthM) || 16
+  const W = Number(light.widthM) || 7
+  const elevR = (elev * Math.PI) / 180
+  const azR = (az * Math.PI) / 180
+  // 方位从北顺时针；Three: +X东 +Y上 +Z北
+  const dirX = Math.sin(azR) * Math.cos(elevR)
+  const dirY = Math.sin(elevR)
+  const dirZ = Math.cos(azR) * Math.cos(elevR)
+  // 光线来自太阳：光源在 -direction 一侧
+  const dist = 18
+  sunLight.position.set(L / 2 - dirX * dist, Math.max(0.5, dirY * dist), W / 2 - dirZ * dist)
+  sunLight.intensity = elev > 2 ? 0.35 + (elev / 90) * 1.1 : 0.08
+  sunLight.color.set(elev > 15 ? 0xfff1c8 : 0xb8c4d8)
+
+  if (elev > 1) {
+    const origin = new THREE.Vector3(L / 2, 0.2, W / 2)
+    const dir = new THREE.Vector3(-dirX, -dirY, -dirZ).normalize()
+    sunArrow = new THREE.ArrowHelper(dir, origin.clone().addScaledVector(dir, -8), 7, 0xffcc44, 0.45, 0.3)
+    scene.add(sunArrow)
+    const tip = origin.clone().addScaledVector(dir, -8)
+    const lab = makeLabelSprite(`日光 ${elev.toFixed(0)}°`, 2.8)
+    lab.position.copy(tip).add(new THREE.Vector3(0, 0.6, 0))
+    sunGroup.add(lab)
+  }
 }
 
 function updateShadeRoll(mesh: THREE.Mesh | null, xCenter: number, span: number, W: number, closed: number) {
   if (!scene) return mesh
   if (!mesh) {
     mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(span, W * 0.9, 1, 1),
+      new THREE.PlaneGeometry(span, W * 0.88),
       new THREE.MeshStandardMaterial({
         map: makeShadeTexture(),
         transparent: true,
-        opacity: 0.55,
+        opacity: 0.5,
         side: THREE.DoubleSide,
         depthWrite: false,
       }),
@@ -336,11 +389,10 @@ function updateShadeRoll(mesh: THREE.Mesh | null, xCenter: number, span: number,
     mesh.rotation.x = -Math.PI / 2
     scene.add(mesh)
   }
-  // 自北向南展开：closed=0 缩在北侧；closed=1 满幅
-  const coverDepth = Math.max(0.08, W * 0.9 * closed)
-  mesh.scale.set(1, 1, Math.max(0.02, closed))
-  mesh.position.set(xCenter, 3.45, W - 0.2 - coverDepth / 2)
-  ;(mesh.material as THREE.MeshStandardMaterial).opacity = 0.15 + closed * 0.55
+  const depth = Math.max(0.12, W * 0.88 * Math.max(0.04, closed))
+  mesh.scale.set(1, 1, Math.max(0.04, closed))
+  mesh.position.set(xCenter, 3.42, W - 0.15 - depth / 2)
+  ;(mesh.material as THREE.MeshStandardMaterial).opacity = 0.2 + closed * 0.55
   return mesh
 }
 
@@ -352,7 +404,7 @@ function updateHeatmap(light: GhEffectiveLight) {
   const ny = light.ny || 14
   const grid = light.grid || []
   const measureZ = Number(light.measurePlaneZ) || 0.9
-  const maxRef = Math.max(light.recipe?.ppfdHardMax ?? 200, ...grid.map((g) => g.ppfd), 1)
+  const maxRef = heatMax.value
 
   const canvas = document.createElement('canvas')
   canvas.width = nx
@@ -366,16 +418,14 @@ function updateHeatmap(light: GhEffectiveLight) {
     ctx.fillRect(ix, iy, 1, 1)
   }
   const tex = new THREE.CanvasTexture(canvas)
-  tex.magFilter = THREE.LinearFilter
+  tex.magFilter = THREE.NearestFilter
   tex.minFilter = THREE.LinearFilter
   tex.colorSpace = THREE.SRGBColorSpace
 
-  const needNew =
+  if (
     !heatMesh ||
-    Math.abs((heatMesh.geometry as THREE.PlaneGeometry).parameters.width - L) > 0.01 ||
-    Math.abs((heatMesh.geometry as THREE.PlaneGeometry).parameters.height - W) > 0.01
-
-  if (needNew) {
+    Math.abs((heatMesh.geometry as THREE.PlaneGeometry).parameters.width - L) > 0.01
+  ) {
     if (heatMesh) {
       scene.remove(heatMesh)
       heatMesh.geometry.dispose()
@@ -384,22 +434,23 @@ function updateHeatmap(light: GhEffectiveLight) {
     }
     heatMesh = new THREE.Mesh(
       new THREE.PlaneGeometry(L, W),
-      new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.72, side: THREE.DoubleSide }),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.82, side: THREE.DoubleSide }),
     )
     heatMesh.rotation.x = -Math.PI / 2
-    heatMesh.position.set(L / 2, measureZ, W / 2)
+    heatMesh.position.set(L / 2, measureZ + 0.02, W / 2)
     scene.add(heatMesh)
   } else {
-    heatMesh.position.y = measureZ
+    heatMesh.position.y = measureZ + 0.02
     ;(heatMesh.material as THREE.MeshBasicMaterial).map?.dispose()
     ;(heatMesh.material as THREE.MeshBasicMaterial).map = tex
     ;(heatMesh.material as THREE.MeshBasicMaterial).needsUpdate = true
+    ;(heatMesh.material as THREE.MeshBasicMaterial).opacity = 0.82
   }
 
   const closed = 1 - (light.shadeOpenPercent ?? 100) / 100
   const zoneA = light.zoneId === 'ZONE-A'
-  shadeClothA = updateShadeRoll(shadeClothA, 4, 7.6, W, zoneA ? closed : 0.12)
-  shadeClothB = updateShadeRoll(shadeClothB, 12, 7.6, W, !zoneA ? closed : 0.12)
+  shadeClothA = updateShadeRoll(shadeClothA, 4, 7.6, W, zoneA ? closed : 0.15)
+  shadeClothB = updateShadeRoll(shadeClothB, 12, 7.6, W, !zoneA ? closed : 0.15)
 
   if (lampGroup && sensorGroup) {
     while (lampGroup.children.length) lampGroup.remove(lampGroup.children[0])
@@ -410,43 +461,43 @@ function updateHeatmap(light: GhEffectiveLight) {
         const dim = (d.dimmingPercent ?? 0) / 100
         const z = d.posZ ?? 1.45
         const bar = new THREE.Mesh(
-          new THREE.BoxGeometry(0.55, 0.06, 0.12),
+          new THREE.BoxGeometry(0.5, 0.05, 0.14),
           new THREE.MeshStandardMaterial({
-            color: 0x2a2e2c,
+            color: 0x222826,
             emissive: 0xf0c14a,
-            emissiveIntensity: 0.2 + dim * 1.2,
+            emissiveIntensity: 0.25 + dim * 1.3,
           }),
         )
         bar.position.set(d.posX, z, d.posY)
         lampGroup.add(bar)
+        const beamH = Math.max(0.35, z - measureZ)
         const beam = new THREE.Mesh(
-          new THREE.ConeGeometry(0.55, Math.max(0.4, z - measureZ), 16, 1, true),
+          new THREE.ConeGeometry(0.48, beamH, 14, 1, true),
           new THREE.MeshBasicMaterial({
             color: 0xffe08a,
             transparent: true,
-            opacity: 0.06 + dim * 0.2,
+            opacity: 0.1 + dim * 0.25,
             side: THREE.DoubleSide,
             depthWrite: false,
           }),
         )
-        beam.position.set(d.posX, (z + measureZ) / 2, d.posY)
+        beam.position.set(d.posX, z - beamH / 2, d.posY)
         beam.rotation.x = Math.PI
         lampGroup.add(beam)
       } else if (d.deviceType === 'PAR_SENSOR') {
-        const stand = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.015, 0.015, 0.12, 6),
+        const z = d.posZ ?? 0.9
+        const disc = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.09, 0.09, 0.03, 12),
+          new THREE.MeshStandardMaterial({ color: 0xdfeee4, emissive: 0x66aa88, emissiveIntensity: 0.35 }),
+        )
+        disc.position.set(d.posX, z, d.posY)
+        sensorGroup.add(disc)
+        const pin = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.012, 0.012, 0.1, 6),
           new THREE.MeshStandardMaterial({ color: 0x889988 }),
         )
-        const z = d.posZ ?? 0.9
-        stand.position.set(d.posX, z - 0.02, d.posY)
-        sensorGroup.add(stand)
-        const ring = new THREE.Mesh(
-          new THREE.TorusGeometry(0.1, 0.025, 8, 20),
-          new THREE.MeshStandardMaterial({ color: 0xe8f2ea, emissive: 0x88aa99, emissiveIntensity: 0.45 }),
-        )
-        ring.rotation.x = Math.PI / 2
-        ring.position.set(d.posX, z + 0.04, d.posY)
-        sensorGroup.add(ring)
+        pin.position.set(d.posX, z - 0.06, d.posY)
+        sensorGroup.add(pin)
       }
     }
   }
@@ -455,17 +506,16 @@ function updateHeatmap(light: GhEffectiveLight) {
 function apply(light: GhEffectiveLight | null) {
   if (!light || !scene) return
   rebuildStructure(light)
+  updateSun(light)
   updateHeatmap(light)
 }
 
 function onResize() {
   const host = hostRef.value
   if (!host || !camera || !renderer) return
-  const w = host.clientWidth
-  const h = host.clientHeight
-  camera.aspect = w / Math.max(h, 1)
+  camera.aspect = host.clientWidth / Math.max(host.clientHeight, 1)
   camera.updateProjectionMatrix()
-  renderer.setSize(w, h)
+  renderer.setSize(host.clientWidth, host.clientHeight)
 }
 
 onMounted(() => {
@@ -492,16 +542,73 @@ watch(
 </script>
 
 <template>
-  <div ref="hostRef" class="scene" aria-label="智慧光棚三维空间 · cq-demo-bay-v1.1" />
+  <div class="wrap">
+    <div ref="hostRef" class="scene" aria-label="智慧光棚三维 · 双层叠栽 · 光场热力 · 日光矢量" />
+    <aside class="hud">
+      <p class="sun">{{ sunHud }}</p>
+      <p class="hint">蓝→青→黄→红 = 冠层 PPFD 热力（当前分区网格）</p>
+      <div class="bar" :title="'max ≈ ' + heatMax.toFixed(0)">
+        <span>低</span>
+        <i /><i /><i /><i />
+        <span>高</span>
+      </div>
+      <p class="hint">石斛三床均为上下叠层；每床东西各灯+测点；上层另有灯/测</p>
+    </aside>
+  </div>
 </template>
 
 <style scoped>
+.wrap {
+  position: relative;
+}
 .scene {
   width: 100%;
-  height: min(52vh, 520px);
-  min-height: 360px;
-  border-radius: 4px;
+  height: min(56vh, 560px);
+  min-height: 400px;
   overflow: hidden;
-  background: #d8e6dc;
+  background: #c5d6ca;
+}
+.hud {
+  position: absolute;
+  left: 0.65rem;
+  bottom: 0.65rem;
+  max-width: 16rem;
+  padding: 0.55rem 0.7rem;
+  background: rgba(16, 32, 24, 0.72);
+  color: #e8f2ea;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  pointer-events: none;
+}
+.sun {
+  margin: 0 0 0.35rem;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.78rem;
+}
+.hint {
+  margin: 0.25rem 0;
+  opacity: 0.9;
+}
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0.35rem 0;
+}
+.bar i {
+  flex: 1;
+  height: 8px;
+}
+.bar i:nth-child(2) {
+  background: #2848c0;
+}
+.bar i:nth-child(3) {
+  background: #40c8a0;
+}
+.bar i:nth-child(4) {
+  background: #e8c030;
+}
+.bar i:nth-child(5) {
+  background: #e82820;
 }
 </style>

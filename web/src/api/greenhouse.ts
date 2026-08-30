@@ -114,6 +114,9 @@ export type GhEffectiveLight = {
   ridgeHeightM?: number
   measurePlaneZ?: number
   coordinateNoteZh?: string
+  solarElevationDeg?: number
+  solarAzimuthDeg?: number
+  sunVisible?: boolean
   grid: { x: number; y: number; ppfd: number; sunPpfd?: number; ledPpfd?: number }[]
   devices: GhDevice[]
   recipe?: GhRecipe

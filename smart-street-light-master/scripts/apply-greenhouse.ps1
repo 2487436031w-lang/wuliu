@@ -5,7 +5,8 @@ $MigDir = Join-Path $Root "sql\migrations"
 $Files = @(
   "V20260830_greenhouse.sql",
   "V20260830b_layout_cq_demo_bay_v1.sql",
-  "V20260830c_layout_v1_1_heights.sql"
+  "V20260830c_layout_v1_1_heights.sql",
+  "V20260830d_layout_v1_2_per_bed.sql"
 )
 
 if (-not (docker ps --filter name=streetlight-pg --format "{{.Names}}")) {

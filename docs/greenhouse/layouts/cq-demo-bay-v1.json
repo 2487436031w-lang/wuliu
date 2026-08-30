@@ -1,7 +1,8 @@
 {
   "layoutId": "cq-demo-bay-v1",
-  "version": "1.1",
+  "version": "1.2",
   "titleZh": "重庆示范单跨拱棚",
+  "notesZh": "v1.2：每床东西双灯双PAR；石斛三床双层叠栽+上层灯测；日光高度角/方位角入库仿真",
   "designDoc": "GREENHOUSE-DESIGN-DETAILED.md",
   "frozenAt": "2026-08-30",
   "coordinate": {

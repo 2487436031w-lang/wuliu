@@ -32,6 +32,33 @@ public final class GreenhouseGeometry {
         return 0.90;
     }
 
+    public static double[] solarElevationAzimuth(double minuteOfDay, String climateProfileId) {
+        double lat = Math.toRadians(29.5);
+        double declDeg = -15;
+        if (climateProfileId != null) {
+            if (climateProfileId.contains("summer")) {
+                declDeg = 20;
+            } else if (climateProfileId.contains("clear") || climateProfileId.contains("overcast")) {
+                declDeg = -5;
+            }
+        }
+        double decl = Math.toRadians(declDeg);
+        double hourAngle = Math.toRadians((minuteOfDay / 60.0 - 12.0) * 15.0);
+        double sinEl = Math.sin(lat) * Math.sin(decl) + Math.cos(lat) * Math.cos(decl) * Math.cos(hourAngle);
+        sinEl = Math.max(-1, Math.min(1, sinEl));
+        double elev = Math.toDegrees(Math.asin(sinEl));
+        // 方位：从北顺时针；演示简化为 6–18 时东→南→西扫过
+        double azFromNorth = 180;
+        if (elev > 0) {
+            double t = (minuteOfDay - 360) / 720.0;
+            t = Math.max(0, Math.min(1, t));
+            azFromNorth = 90 + t * 180;
+        } else {
+            elev = 0;
+        }
+        return new double[]{elev, azFromNorth};
+    }
+
     /** 直射日型用较大南北梯度；雾/阴用漫射梯度。 */
     public static boolean isDiffuseProfile(String climateProfileId) {
         if (climateProfileId == null) {
