@@ -27,9 +27,9 @@ public final class GreenhouseGeometry {
 
     public static double measurePlaneZ(String zoneId) {
         if ("ZONE-B".equals(zoneId)) {
-            return 0.45;
+            return 0.78;
         }
-        return 0.50;
+        return 0.90;
     }
 
     /** 直射日型用较大南北梯度；雾/阴用漫射梯度。 */

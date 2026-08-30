@@ -5,8 +5,9 @@
 
 | 文档 | 用途 |
 |------|------|
-| [GREENHOUSE-LAYOUT.md](./GREENHOUSE-LAYOUT.md) | **棚体空间设计真源**（边界/朝向/床/灯/传感器） |
-| [layouts/cq-demo-bay-v1.json](./layouts/cq-demo-bay-v1.json) | 同上 · 机器可读坐标 |
+| [GREENHOUSE-LAYOUT.md](./GREENHOUSE-LAYOUT.md) | **棚体空间设计真源**（边界/朝向） |
+| [GREENHOUSE-DESIGN-DETAILED.md](./GREENHOUSE-DESIGN-DETAILED.md) | **细化设计**：叠层作物、灯感对应、遮阳材料/卷向、3D 技术路线 |
+| [layouts/cq-demo-bay-v1.json](./layouts/cq-demo-bay-v1.json) | 机器可读坐标（v1.1） |
 | [PROJECT.md](./PROJECT.md) | 项目描述 |
 | [TEAM-DIVISION.md](./TEAM-DIVISION.md) | 分工与 RACI |
 | [INTEGRATION.md](./INTEGRATION.md) | 对接（MQTT/HTTP） |

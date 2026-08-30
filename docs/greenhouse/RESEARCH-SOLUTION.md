@@ -77,6 +77,17 @@
 | 重庆南川智慧菜厂 / 奉民双层棚 | 本地场景 | 遮阳网 20s 展开、夏降温、冬寡照选型耐弱光品种 | 演示脚本引用本地痛点，增强「重庆实景」可信度 |
 | GEIA / NIDO 类 | 产业 IoT | 光配方 + VPD/EC 同屏，MQTT/REST | 架构分层：光主控，水肥气候为**约束输入** |
 
+### 7.1 可视化技术路线（v1.1 冻结）
+
+| 阶段 | 方案 |
+|------|------|
+| 控制台 MVP | **Three.js** + 布局 JSON（高架床、叠层、外遮阳卷帘可见） |
+| 观感增强 | Blender 低模 → **GLB** 替换代理几何 |
+| 答辩可选 | **UE5** 展陈同一坐标系资产；**不**进控制环 |
+| 光学参考 | [horticulture-lighting-simulator](https://github.com/luminousphotonics/horticulture-lighting-simulator)（Radiance + Three Viewer） |
+
+详见 [GREENHOUSE-DESIGN-DETAILED.md](./GREENHOUSE-DESIGN-DETAILED.md) §7。
+
 **灯光排布模型（工程分层）**
 
 ```

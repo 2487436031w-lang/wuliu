@@ -116,8 +116,9 @@ onUnmounted(() => {
       <p class="eyebrow">智慧光棚 · cq-demo-bay-v1 · 空间光场</p>
       <h2 class="title">冠层光环境</h2>
       <p class="lede">
-        {{ light?.coordinateNoteZh || '西南角原点 · 长轴东西 · 南向采光' }}；16×7 m 单跨拱棚，三维热力与灯/测点对齐布局真源。曲线对比室外、未控自然光与补光/遮阳调控后有效光。一天压缩为
-        {{ light?.dayCompressSec ?? 120 }} 秒连续推进（约 {{ light?.minutesPerTick ?? '—' }} 仿真分钟/步）。
+        {{ light?.coordinateNoteZh || '西南角原点 · 长轴东西 · 南向采光' }}；高架苗床与石斛双层叠放；外遮阳网自北卷轴向南展开（约 55%）。灯盘对准床位，PAR 在冠层。一天压缩为
+        {{ light?.dayCompressSec ?? 120 }} 秒连续推进（约 {{ light?.minutesPerTick ?? '—' }} 仿真分钟/步）。细化设计见
+        GREENHOUSE-DESIGN-DETAILED.md。
       </p>
     </section>
 

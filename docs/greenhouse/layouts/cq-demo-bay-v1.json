@@ -1,7 +1,8 @@
 {
   "layoutId": "cq-demo-bay-v1",
-  "version": "1.0",
+  "version": "1.1",
   "titleZh": "重庆示范单跨拱棚",
+  "designDoc": "GREENHOUSE-DESIGN-DETAILED.md",
   "frozenAt": "2026-08-30",
   "coordinate": {
     "origin": "southwest_inner_corner_floor",
@@ -22,6 +23,24 @@
     "externalShadeZ": 3.5,
     "externalShadeMaxBlockFraction": 0.85
   },
+  "shadeSystem": {
+    "primary": {
+      "type": "EXTERNAL_ROLL_SCREEN",
+      "materialZh": "耐老化黑/铝箔编织遮阳网",
+      "nominalShadePct": 55,
+      "maxBlockFraction": 0.85,
+      "axisZh": "北侧卷轴，向南展开覆盖半跨屋面投影",
+      "retractOpenPercentMeans": 100,
+      "motors": ["SHADE-ZONE-A", "SHADE-ZONE-B"]
+    },
+    "secondaryOptional": {
+      "type": "INTERNAL_LOCAL",
+      "zoneId": "ZONE-B",
+      "nominalShadePct": 75,
+      "mvpWired": false,
+      "notesZh": "金线莲极限耐阴局部内衬，仅示意"
+    }
+  },
   "sunGradient": {
     "direct": { "southBedFactor": 1.06, "midBedFactor": 1.0, "northBedFactor": 0.94 },
     "diffuse": { "southBedFactor": 1.02, "midBedFactor": 1.0, "northBedFactor": 0.98 }
@@ -34,26 +53,30 @@
       "nameZh": "A区·铁皮石斛",
       "cropDefault": "dendrobium-officinale",
       "bounds": { "x0": 0.5, "x1": 7.5, "y0": 0.8, "y1": 6.2 },
-      "canopyHeightM": 0.5,
-      "measurePlaneZ": 0.5,
+      "canopyHeightM": 0.9,
+      "measurePlaneZ": 0.9,
+      "stacking": [
+        { "tier": "L0", "z": 0.55, "roleZh": "栽培层高架苗床" },
+        { "tier": "L1", "z": 1.25, "roleZh": "组培/炼苗搁架（中北床上方）", "beds": ["BED-A-M", "BED-A-N"] }
+      ],
       "beds": [
-        { "bedId": "BED-A-S", "y0": 1.0, "y1": 1.8, "zBed": 0.2, "role": "south" },
-        { "bedId": "BED-A-M", "y0": 3.1, "y1": 3.9, "zBed": 0.2, "role": "mid" },
-        { "bedId": "BED-A-N", "y0": 5.2, "y1": 6.0, "zBed": 0.2, "role": "north" }
+        { "bedId": "BED-A-S", "y0": 1.0, "y1": 1.8, "zBed": 0.55, "role": "south", "cropProxy": "dendrobium_pot" },
+        { "bedId": "BED-A-M", "y0": 3.1, "y1": 3.9, "zBed": 0.55, "role": "mid", "cropProxy": "dendrobium_pot" },
+        { "bedId": "BED-A-N", "y0": 5.2, "y1": 6.0, "zBed": 0.55, "role": "north", "cropProxy": "dendrobium_pot" }
       ],
       "lamps": [
-        { "deviceSn": "LAMP-ZONE-A-01", "x": 2.0, "y": 2.35, "z": 2.3, "maxPpfdAtCanopy": 160, "beamHalfAngleDeg": 60 },
-        { "deviceSn": "LAMP-ZONE-A-02", "x": 2.0, "y": 5.35, "z": 2.3, "maxPpfdAtCanopy": 160, "beamHalfAngleDeg": 60 },
-        { "deviceSn": "LAMP-ZONE-A-03", "x": 6.0, "y": 2.35, "z": 2.3, "maxPpfdAtCanopy": 160, "beamHalfAngleDeg": 60 },
-        { "deviceSn": "LAMP-ZONE-A-04", "x": 6.0, "y": 5.35, "z": 2.3, "maxPpfdAtCanopy": 160, "beamHalfAngleDeg": 60 }
+        { "deviceSn": "LAMP-ZONE-A-01", "x": 2.0, "y": 2.35, "z": 1.45, "maxPpfdAtCanopy": 160, "beamHalfAngleDeg": 60, "servesBeds": ["BED-A-S", "BED-A-M"] },
+        { "deviceSn": "LAMP-ZONE-A-02", "x": 2.0, "y": 5.35, "z": 1.45, "maxPpfdAtCanopy": 160, "beamHalfAngleDeg": 60, "servesBeds": ["BED-A-N", "BED-A-M"] },
+        { "deviceSn": "LAMP-ZONE-A-03", "x": 6.0, "y": 2.35, "z": 1.45, "maxPpfdAtCanopy": 160, "beamHalfAngleDeg": 60, "servesBeds": ["BED-A-S", "BED-A-M"] },
+        { "deviceSn": "LAMP-ZONE-A-04", "x": 6.0, "y": 5.35, "z": 1.45, "maxPpfdAtCanopy": 160, "beamHalfAngleDeg": 60, "servesBeds": ["BED-A-N", "BED-A-M"] }
       ],
       "sensors": [
-        { "deviceSn": "PAR-ZONE-A-01", "x": 2.0, "y": 1.4, "z": 0.5, "type": "PAR_SENSOR" },
-        { "deviceSn": "PAR-ZONE-A-02", "x": 4.0, "y": 3.5, "z": 0.5, "type": "PAR_SENSOR" },
-        { "deviceSn": "PAR-ZONE-A-03", "x": 6.0, "y": 5.6, "z": 0.5, "type": "PAR_SENSOR" }
+        { "deviceSn": "PAR-ZONE-A-01", "x": 2.0, "y": 1.4, "z": 0.9, "type": "PAR_SENSOR", "bedId": "BED-A-S" },
+        { "deviceSn": "PAR-ZONE-A-02", "x": 4.0, "y": 3.5, "z": 0.9, "type": "PAR_SENSOR", "bedId": "BED-A-M" },
+        { "deviceSn": "PAR-ZONE-A-03", "x": 6.0, "y": 5.6, "z": 0.9, "type": "PAR_SENSOR", "bedId": "BED-A-N" }
       ],
       "shades": [
-        { "deviceSn": "SHADE-ZONE-A", "x": 4.0, "y": 3.5, "z": 3.5, "coverX0": 0, "coverX1": 8, "layer": "EXTERNAL", "maxBlockFraction": 0.85 }
+        { "deviceSn": "SHADE-ZONE-A", "x": 4.0, "y": 6.7, "z": 3.5, "coverX0": 0, "coverX1": 8, "layer": "EXTERNAL", "maxBlockFraction": 0.85, "rollFrom": "north" }
       ]
     },
     {
@@ -61,29 +84,41 @@
       "nameZh": "B区·金线莲/草莓切换",
       "cropDefault": "anoectochilus-formosanus",
       "bounds": { "x0": 8.5, "x1": 15.5, "y0": 0.8, "y1": 6.2 },
-      "canopyHeightM": 0.4,
-      "measurePlaneZ": 0.45,
+      "canopyHeightM": 0.78,
+      "measurePlaneZ": 0.78,
+      "stacking": [
+        { "tier": "L0", "z": 0.55, "roleZh": "金线莲密植或草莓高架槽（切换）" }
+      ],
       "beds": [
-        { "bedId": "BED-B-S", "y0": 1.0, "y1": 1.8, "zBed": 0.2, "role": "south" },
-        { "bedId": "BED-B-M", "y0": 3.1, "y1": 3.9, "zBed": 0.2, "role": "mid" },
-        { "bedId": "BED-B-N", "y0": 5.2, "y1": 6.0, "zBed": 0.2, "role": "north" }
+        { "bedId": "BED-B-S", "y0": 1.0, "y1": 1.8, "zBed": 0.55, "role": "south", "cropProxy": "anoectochilus_mat" },
+        { "bedId": "BED-B-M", "y0": 3.1, "y1": 3.9, "zBed": 0.55, "role": "mid", "cropProxy": "anoectochilus_mat" },
+        { "bedId": "BED-B-N", "y0": 5.2, "y1": 6.0, "zBed": 0.55, "role": "north", "cropProxy": "anoectochilus_mat" }
       ],
       "lamps": [
-        { "deviceSn": "LAMP-ZONE-B-01", "x": 10.0, "y": 2.35, "z": 2.3, "maxPpfdAtCanopy": 140, "beamHalfAngleDeg": 60 },
-        { "deviceSn": "LAMP-ZONE-B-02", "x": 10.0, "y": 5.35, "z": 2.3, "maxPpfdAtCanopy": 140, "beamHalfAngleDeg": 60 },
-        { "deviceSn": "LAMP-ZONE-B-03", "x": 13.5, "y": 3.85, "z": 2.3, "maxPpfdAtCanopy": 140, "beamHalfAngleDeg": 60 }
+        { "deviceSn": "LAMP-ZONE-B-01", "x": 10.0, "y": 2.35, "z": 1.45, "maxPpfdAtCanopy": 140, "beamHalfAngleDeg": 60, "servesBeds": ["BED-B-S", "BED-B-M"] },
+        { "deviceSn": "LAMP-ZONE-B-02", "x": 10.0, "y": 5.35, "z": 1.45, "maxPpfdAtCanopy": 140, "beamHalfAngleDeg": 60, "servesBeds": ["BED-B-N", "BED-B-M"] },
+        { "deviceSn": "LAMP-ZONE-B-03", "x": 13.5, "y": 3.85, "z": 1.45, "maxPpfdAtCanopy": 140, "beamHalfAngleDeg": 60, "servesBeds": ["BED-B-S", "BED-B-M", "BED-B-N"] }
       ],
       "sensors": [
-        { "deviceSn": "PAR-ZONE-B-01", "x": 10.0, "y": 1.4, "z": 0.45, "type": "PAR_SENSOR" },
-        { "deviceSn": "PAR-ZONE-B-02", "x": 12.0, "y": 3.5, "z": 0.45, "type": "PAR_SENSOR" },
-        { "deviceSn": "PAR-ZONE-B-03", "x": 14.0, "y": 5.6, "z": 0.45, "type": "PAR_SENSOR" }
+        { "deviceSn": "PAR-ZONE-B-01", "x": 10.0, "y": 1.4, "z": 0.78, "type": "PAR_SENSOR", "bedId": "BED-B-S" },
+        { "deviceSn": "PAR-ZONE-B-02", "x": 12.0, "y": 3.5, "z": 0.78, "type": "PAR_SENSOR", "bedId": "BED-B-M" },
+        { "deviceSn": "PAR-ZONE-B-03", "x": 14.0, "y": 5.6, "z": 0.78, "type": "PAR_SENSOR", "bedId": "BED-B-N" }
       ],
       "shades": [
-        { "deviceSn": "SHADE-ZONE-B", "x": 12.0, "y": 3.5, "z": 3.5, "coverX0": 8, "coverX1": 16, "layer": "EXTERNAL", "maxBlockFraction": 0.85 }
+        { "deviceSn": "SHADE-ZONE-B", "x": 12.0, "y": 6.7, "z": 3.5, "coverX0": 8, "coverX1": 16, "layer": "EXTERNAL", "maxBlockFraction": 0.85, "rollFrom": "north" }
       ]
     }
   ],
   "envSensors": [
     { "deviceSn": "ENV-BAY-01", "x": 8.0, "y": 3.5, "z": 1.6, "type": "AIR_TRH", "mvp": false }
-  ]
+  ],
+  "viz": {
+    "engineMvp": "three.js",
+    "assetPipeline": "blender-glb-optional",
+    "cinematicOptional": "unreal-engine-5",
+    "referenceProjects": [
+      "https://github.com/luminousphotonics/horticulture-lighting-simulator",
+      "https://github.com/MeadowMakerAi/greenhouse-cannabis-model"
+    ]
+  }
 }

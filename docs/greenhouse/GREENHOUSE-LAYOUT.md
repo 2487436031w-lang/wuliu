@@ -1,7 +1,8 @@
 # 智慧光棚 · 棚体空间设计（真源）
 
-> 版本：`v1.0` · 冻结日期：2026-08-30  
-> **地位：物理设计优先于软件。** 仿真、光场计算、3D、种子坐标、规则阈值均须对齐本文与 [`layouts/cq-demo-bay-v1.json`](./layouts/cq-demo-bay-v1.json)。  
+> 版本：`v1.1` · 2026-08-30  
+> **地位：物理设计优先于软件。** 细化（叠层/灯感对应/遮阳材料与卷向/3D 路线）见 **[GREENHOUSE-DESIGN-DETAILED.md](./GREENHOUSE-DESIGN-DETAILED.md)**。  
+> 几何数字：[`layouts/cq-demo-bay-v1.json`](./layouts/cq-demo-bay-v1.json)（version **1.1**）。  
 > 配套：[HARDWARE-BOM.md](./HARDWARE-BOM.md) · [contracts/light-field-model.md](./contracts/light-field-model.md) · [contracts/light-recipe.md](./contracts/light-recipe.md)
 
 ---

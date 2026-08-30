@@ -139,7 +139,7 @@ public final class LightFieldModel {
             }
             double lx = lamp.getPosX() != null ? lamp.getPosX().doubleValue() : x;
             double ly = lamp.getPosY() != null ? lamp.getPosY().doubleValue() : y;
-            double lz = lamp.getPosZ() != null ? lamp.getPosZ().doubleValue() : 2.30;
+            double lz = lamp.getPosZ() != null ? lamp.getPosZ().doubleValue() : 1.45;
             double dx = x - lx;
             double dy = y - ly;
             double dz = Math.max(0.2, lz - z);
