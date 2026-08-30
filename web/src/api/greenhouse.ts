@@ -90,9 +90,11 @@ export type GhEffectiveLight = {
   name: string
   recipeId: string
   climateProfileId: string
+  geometryId?: string
   minuteOfDay: number
   dayProgress?: number
   dayCompressSec?: number
+  intervalMs?: number
   minutesPerTick?: number
   outdoorParPpfd: number
   sunInPpfd: number
@@ -110,6 +112,8 @@ export type GhEffectiveLight = {
   widthM: number
   gutterHeightM?: number
   ridgeHeightM?: number
+  measurePlaneZ?: number
+  coordinateNoteZh?: string
   grid: { x: number; y: number; ppfd: number; sunPpfd?: number; ledPpfd?: number }[]
   devices: GhDevice[]
   recipe?: GhRecipe

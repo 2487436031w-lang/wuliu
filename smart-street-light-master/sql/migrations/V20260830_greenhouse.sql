@@ -39,8 +39,8 @@ CREATE TABLE IF NOT EXISTS gh_zones
     aggregation          VARCHAR(16)  NOT NULL DEFAULT 'AVG',
     shade_open_percent   INT          NOT NULL DEFAULT 100,
     cover_transmittance  NUMERIC(4, 3) NOT NULL DEFAULT 0.650,
-    length_m             NUMERIC(8, 2) NOT NULL DEFAULT 12,
-    width_m              NUMERIC(8, 2) NOT NULL DEFAULT 6,
+    length_m             NUMERIC(8, 2) NOT NULL DEFAULT 16,
+    width_m              NUMERIC(8, 2) NOT NULL DEFAULT 7,
     last_effective_ppfd  NUMERIC(8, 2),
     last_dli             NUMERIC(8, 3) NOT NULL DEFAULT 0,
     last_rule_at         TIMESTAMP,
@@ -128,21 +128,27 @@ INSERT INTO gh_recipes (recipe_id, crop, crop_name_zh, stage, ppfd_target_min, p
 VALUES ('dendrobium-officinale-veg-v1', 'DENDROBIUM_OFFICINALE', '铁皮石斛', 'TISSUE', 60, 70, 50, 90, 2.160, 3.020, 12)
 ON CONFLICT (recipe_id) DO NOTHING;
 
-INSERT INTO gh_zones (zone_id, name, recipe_id, climate_profile_id, shade_open_percent)
-VALUES ('ZONE-A', 'A区·铁皮石斛', 'dendrobium-officinale-tissue-v1', 'cq-winter-fog', 100),
-       ('ZONE-B', 'B区·金线莲/草莓切换', 'anoectochilus-formosanus-biomass-v1', 'cq-winter-fog', 100)
+INSERT INTO gh_zones (zone_id, name, recipe_id, climate_profile_id, shade_open_percent, length_m, width_m)
+VALUES ('ZONE-A', 'A区·铁皮石斛', 'dendrobium-officinale-tissue-v1', 'cq-winter-fog', 100, 16.0, 7.0),
+       ('ZONE-B', 'B区·金线莲/草莓切换', 'anoectochilus-formosanus-biomass-v1', 'cq-winter-fog', 100, 16.0, 7.0)
 ON CONFLICT (zone_id) DO NOTHING;
 
+-- 坐标真源：docs/greenhouse/layouts/cq-demo-bay-v1.json（西南角原点 · +X东 · +Y北）
 INSERT INTO gh_devices (device_sn, device_name, zone_id, device_type, model, adapter_id, pos_x, pos_y, pos_z, dimming_percent, shade_open_percent, power_on, online_status)
 VALUES
-    ('PAR-ZONE-A-01', 'A区测点1', 'ZONE-A', 'PAR_SENSOR', 'SIM_PAR', 'sim.par', 2.0, 1.5, 0.5, NULL, NULL, NULL, 'ONLINE'),
-    ('PAR-ZONE-A-02', 'A区测点2', 'ZONE-A', 'PAR_SENSOR', 'SIM_PAR', 'sim.par', 6.0, 3.0, 0.5, NULL, NULL, NULL, 'ONLINE'),
-    ('PAR-ZONE-A-03', 'A区测点3', 'ZONE-A', 'PAR_SENSOR', 'SIM_PAR', 'sim.par', 10.0, 4.5, 0.5, NULL, NULL, NULL, 'ONLINE'),
-    ('LAMP-ZONE-A-01', 'A区灯1', 'ZONE-A', 'GROW_LAMP', 'SIM_LAMP', 'sim.lamp', 3.0, 2.0, 2.2, 20, NULL, TRUE, 'ONLINE'),
-    ('LAMP-ZONE-A-02', 'A区灯2', 'ZONE-A', 'GROW_LAMP', 'SIM_LAMP', 'sim.lamp', 9.0, 4.0, 2.2, 20, NULL, TRUE, 'ONLINE'),
-    ('SHADE-ZONE-A', 'A区遮阳', 'ZONE-A', 'SHADE_ACTUATOR', 'SIM_SHADE', 'sim.shade', 6.0, 3.0, 3.2, NULL, 100, NULL, 'ONLINE'),
-    ('PAR-ZONE-B-01', 'B区测点1', 'ZONE-B', 'PAR_SENSOR', 'SIM_PAR', 'sim.par', 2.0, 1.5, 0.5, NULL, NULL, NULL, 'ONLINE'),
-    ('PAR-ZONE-B-02', 'B区测点2', 'ZONE-B', 'PAR_SENSOR', 'SIM_PAR', 'sim.par', 8.0, 4.0, 0.5, NULL, NULL, NULL, 'ONLINE'),
-    ('LAMP-ZONE-B-01', 'B区灯1', 'ZONE-B', 'GROW_LAMP', 'SIM_LAMP', 'sim.lamp', 5.0, 3.0, 2.2, 10, NULL, TRUE, 'ONLINE'),
-    ('SHADE-ZONE-B', 'B区遮阳', 'ZONE-B', 'SHADE_ACTUATOR', 'SIM_SHADE', 'sim.shade', 5.0, 3.0, 3.2, NULL, 100, NULL, 'ONLINE')
+    ('PAR-ZONE-A-01', 'A区测点1', 'ZONE-A', 'PAR_SENSOR', 'SIM_PAR', 'sim.par', 2.0, 1.40, 0.50, NULL, NULL, NULL, 'ONLINE'),
+    ('PAR-ZONE-A-02', 'A区测点2', 'ZONE-A', 'PAR_SENSOR', 'SIM_PAR', 'sim.par', 4.0, 3.50, 0.50, NULL, NULL, NULL, 'ONLINE'),
+    ('PAR-ZONE-A-03', 'A区测点3', 'ZONE-A', 'PAR_SENSOR', 'SIM_PAR', 'sim.par', 6.0, 5.60, 0.50, NULL, NULL, NULL, 'ONLINE'),
+    ('LAMP-ZONE-A-01', 'A区灯1', 'ZONE-A', 'GROW_LAMP', 'SIM_LAMP', 'sim.lamp', 2.0, 2.35, 2.30, 20, NULL, TRUE, 'ONLINE'),
+    ('LAMP-ZONE-A-02', 'A区灯2', 'ZONE-A', 'GROW_LAMP', 'SIM_LAMP', 'sim.lamp', 2.0, 5.35, 2.30, 20, NULL, TRUE, 'ONLINE'),
+    ('LAMP-ZONE-A-03', 'A区灯3', 'ZONE-A', 'GROW_LAMP', 'SIM_LAMP', 'sim.lamp', 6.0, 2.35, 2.30, 20, NULL, TRUE, 'ONLINE'),
+    ('LAMP-ZONE-A-04', 'A区灯4', 'ZONE-A', 'GROW_LAMP', 'SIM_LAMP', 'sim.lamp', 6.0, 5.35, 2.30, 20, NULL, TRUE, 'ONLINE'),
+    ('SHADE-ZONE-A', 'A区遮阳', 'ZONE-A', 'SHADE_ACTUATOR', 'SIM_SHADE', 'sim.shade', 4.0, 3.50, 3.50, NULL, 100, NULL, 'ONLINE'),
+    ('PAR-ZONE-B-01', 'B区测点1', 'ZONE-B', 'PAR_SENSOR', 'SIM_PAR', 'sim.par', 10.0, 1.40, 0.45, NULL, NULL, NULL, 'ONLINE'),
+    ('PAR-ZONE-B-02', 'B区测点2', 'ZONE-B', 'PAR_SENSOR', 'SIM_PAR', 'sim.par', 12.0, 3.50, 0.45, NULL, NULL, NULL, 'ONLINE'),
+    ('PAR-ZONE-B-03', 'B区测点3', 'ZONE-B', 'PAR_SENSOR', 'SIM_PAR', 'sim.par', 14.0, 5.60, 0.45, NULL, NULL, NULL, 'ONLINE'),
+    ('LAMP-ZONE-B-01', 'B区灯1', 'ZONE-B', 'GROW_LAMP', 'SIM_LAMP', 'sim.lamp', 10.0, 2.35, 2.30, 10, NULL, TRUE, 'ONLINE'),
+    ('LAMP-ZONE-B-02', 'B区灯2', 'ZONE-B', 'GROW_LAMP', 'SIM_LAMP', 'sim.lamp', 10.0, 5.35, 2.30, 10, NULL, TRUE, 'ONLINE'),
+    ('LAMP-ZONE-B-03', 'B区灯3', 'ZONE-B', 'GROW_LAMP', 'SIM_LAMP', 'sim.lamp', 13.5, 3.85, 2.30, 10, NULL, TRUE, 'ONLINE'),
+    ('SHADE-ZONE-B', 'B区遮阳', 'ZONE-B', 'SHADE_ACTUATOR', 'SIM_SHADE', 'sim.shade', 12.0, 3.50, 3.50, NULL, 100, NULL, 'ONLINE')
 ON CONFLICT (device_sn) DO NOTHING;

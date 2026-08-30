@@ -15,9 +15,9 @@ streetlight:
   demo:
     mock-keepalive: false
 
-# 智慧光棚：一天压缩到 2 分钟（120s），每 1s tick 推进约 12 仿真分钟
+# 智慧光棚：一天压缩约 2 分钟（120s）；250ms tick → 约 3 仿真分钟/步（浮点推进，曲线密采样）
 greenhouse:
   sim:
     enabled: true
-    interval-ms: 1000
+    interval-ms: 250
     day-compress-sec: 120

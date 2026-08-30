@@ -11,6 +11,52 @@ const props = defineProps<{
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 
+function densifySeries(raw: DaySeriesPoint[]): DaySeriesPoint[] {
+  if (raw.length < 2) return raw
+  // 按 minuteOfDay 排序；若已够密则原样
+  const sorted = [...raw].sort((a, b) => a.minuteOfDay - b.minuteOfDay)
+  const gaps: number[] = []
+  for (let i = 1; i < sorted.length; i++) {
+    gaps.push(sorted[i].minuteOfDay - sorted[i - 1].minuteOfDay)
+  }
+  const gapCopy = [...gaps].sort((a, b) => a - b)
+  const medianGap = gapCopy[Math.floor(gapCopy.length / 2)] ?? 12
+  if (medianGap <= 4) return sorted
+
+  const out: DaySeriesPoint[] = []
+  const step = Math.max(1, medianGap / 4)
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i]
+    const b = sorted[i + 1]
+    out.push(a)
+    const span = b.minuteOfDay - a.minuteOfDay
+    if (span <= 0) continue
+    const n = Math.min(8, Math.floor(span / step))
+    for (let k = 1; k < n; k++) {
+      const t = k / n
+      out.push(lerpPoint(a, b, t))
+    }
+  }
+  out.push(sorted[sorted.length - 1])
+  return out
+}
+
+function lerpPoint(a: DaySeriesPoint, b: DaySeriesPoint, t: number): DaySeriesPoint {
+  const L = (x: number, y: number) => x + (y - x) * t
+  return {
+    minuteOfDay: L(a.minuteOfDay, b.minuteOfDay),
+    outdoorPpfd: L(a.outdoorPpfd, b.outdoorPpfd),
+    naturalPpfd: L(a.naturalPpfd, b.naturalPpfd),
+    sunInPpfd: L(a.sunInPpfd, b.sunInPpfd),
+    ledPpfd: L(a.ledPpfd, b.ledPpfd),
+    controlledPpfd: L(a.controlledPpfd, b.controlledPpfd),
+    humidityPct: L(a.humidityPct, b.humidityPct),
+    temperatureC: L(a.temperatureC, b.temperatureC),
+    shadeOpenPercent: L(a.shadeOpenPercent, b.shadeOpenPercent),
+    avgDimmingPercent: L(a.avgDimmingPercent, b.avgDimmingPercent),
+  }
+}
+
 function draw() {
   const canvas = canvasRef.value
   if (!canvas) return
@@ -25,7 +71,7 @@ function draw() {
   ctx.fillStyle = '#f3f7f4'
   ctx.fillRect(0, 0, W, H)
 
-  const series = props.series || []
+  const series = densifySeries(props.series || [])
   ctx.fillStyle = '#3a4f44'
   ctx.font = '600 13px "Source Sans 3", sans-serif'
   ctx.fillText(props.title || '日变化', pad.l, 18)
@@ -53,7 +99,7 @@ function draw() {
 
   if (!series.length) {
     ctx.fillStyle = '#5a6e62'
-    ctx.fillText('等待仿真采样…（一天压缩为 2 分钟）', pad.l + 8, pad.t + plotH / 2)
+    ctx.fillText('等待仿真采样…（一天压缩为 2 分钟 · 连续推进）', pad.l + 8, pad.t + plotH / 2)
     return
   }
 
@@ -77,11 +123,9 @@ function draw() {
     const vals = series.flatMap((s) => [s.outdoorPpfd, s.naturalPpfd, s.controlledPpfd])
     const maxV = Math.max(50, ...vals) * 1.08
     const y = (v: number) => pad.t + plotH - (v / maxV) * plotH
-    // target band if we only have controlled - skip
     strokeLine(ctx, series, (s) => xAt(s.minuteOfDay), (s) => y(s.outdoorPpfd), '#8aa193', 1.5)
     strokeLine(ctx, series, (s) => xAt(s.minuteOfDay), (s) => y(s.naturalPpfd), '#5a8f6a', 2)
     strokeLine(ctx, series, (s) => xAt(s.minuteOfDay), (s) => y(s.controlledPpfd), '#e6b84d', 2.5)
-    // led contribution as thin area hint
     strokeLine(ctx, series, (s) => xAt(s.minuteOfDay), (s) => y(s.ledPpfd), '#c47a2c', 1.25)
     legend(ctx, pad.l, [
       { c: '#8aa193', t: '室外 PAR' },
@@ -113,6 +157,8 @@ function strokeLine(
   if (series.length < 2) return
   ctx.strokeStyle = color
   ctx.lineWidth = width
+  ctx.lineJoin = 'round'
+  ctx.lineCap = 'round'
   ctx.beginPath()
   series.forEach((s, i) => {
     const xi = x(s)

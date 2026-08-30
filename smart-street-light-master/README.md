@@ -12,6 +12,7 @@ powershell -ExecutionPolicy Bypass -File scripts\apply-greenhouse.ps1
 
 - API `:8080` · PG `:5433` · EMQX `:1883`
 - 光棚 REST：`/greenhouse/**` · MQTT：`smart-greenhouse/{sn}/…`
-- 仿真：`greenhouse.sim.enabled=true`，`day-compress-sec: 120`
+- 仿真：`greenhouse.sim.enabled=true`，`day-compress-sec: 120`，`interval-ms: 250`（浮点连续推进）
+- 棚体：`cq-demo-bay-v1` 16×7 · 网格 32×14 · 布局见 `docs/greenhouse/`
 
 目录名历史遗留；**交付产品是智慧光棚。**

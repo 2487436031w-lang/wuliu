@@ -33,9 +33,9 @@
 
 ## 需求 vs 完成（摘要）
 
-Must 闭环与 3D/2min 演示已有初版；**坐标仍按旧 12×6 / 少灯种子，尚未对齐 `cq-demo-bay-v1`** —— 下一工程优先同步迁移与仿真。
+Must 闭环与 3D/2min 演示已落地；**`cq-demo-bay-v1` 坐标、灯数、32×14 网格、南北 `bedSunFactor`、连续仿真（250ms）已与布局真源同步**。
 
-下步：`gh_devices` 种子与 LightFieldModel 对齐布局 JSON；Three.js 南向与三床；口播脚本。
+下步：口播脚本、真机适配、工单/告警打磨。
 
 ---
 

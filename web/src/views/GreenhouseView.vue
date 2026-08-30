@@ -83,8 +83,13 @@ async function reject(id: number) {
 }
 
 function clockLabel(minute: number) {
-  const h = Math.floor(minute / 60)
-  const m = minute % 60
+  const total = Math.max(0, Math.floor(minute))
+  const h = Math.floor(total / 60) % 24
+  const m = total % 60
+  const sec = Math.floor((minute % 1) * 60)
+  if (sec > 0) {
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+  }
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
@@ -96,7 +101,8 @@ watch(
 
 onMounted(async () => {
   await refresh()
-  poll = window.setInterval(refresh, 2000)
+  // 配合后端 250ms tick：约 500ms 拉一次即可连续
+  poll = window.setInterval(refresh, 500)
 })
 
 onUnmounted(() => {
@@ -107,15 +113,15 @@ onUnmounted(() => {
 <template>
   <div class="gh">
     <section class="hero">
-      <p class="eyebrow">智慧光棚 · 空间光场 + 全日压缩仿真</p>
+      <p class="eyebrow">智慧光棚 · cq-demo-bay-v1 · 空间光场</p>
       <h2 class="title">冠层光环境</h2>
       <p class="lede">
-        三维棚体与冠层热力显示空间照度；曲线对比室外、未控自然光与补光/遮阳调控后有效光，并同步湿度温度。一天压缩为
-        {{ light?.dayCompressSec ?? 120 }} 秒回放。
+        {{ light?.coordinateNoteZh || '西南角原点 · 长轴东西 · 南向采光' }}；16×7 m 单跨拱棚，三维热力与灯/测点对齐布局真源。曲线对比室外、未控自然光与补光/遮阳调控后有效光。一天压缩为
+        {{ light?.dayCompressSec ?? 120 }} 秒连续推进（约 {{ light?.minutesPerTick ?? '—' }} 仿真分钟/步）。
       </p>
     </section>
 
-    <p v-if="err" class="err">{{ err }} · 请确认后端已用最新 jar（含 day-compress）重启</p>
+    <p v-if="err" class="err">{{ err }} · 请确认后端已用最新 jar（含 cq-demo-bay-v1 / 连续仿真）重启</p>
 
     <div class="toolbar">
       <label>
@@ -148,7 +154,10 @@ onUnmounted(() => {
     <div class="sim-bar" v-if="light">
       <div class="sim-meta">
         <strong>仿真时刻 {{ clockLabel(light.minuteOfDay) }}</strong>
-        <span>全日进度 {{ dayPct }}% · 每 tick ≈ {{ light.minutesPerTick }} 仿真分钟</span>
+        <span
+          >全日进度 {{ dayPct }}% · {{ light.geometryId || 'cq-demo-bay-v1' }} · 每 tick ≈
+          {{ light.minutesPerTick }} 仿真分钟（{{ light.intervalMs ?? 250 }}ms）</span
+        >
       </div>
       <div class="track"><i :style="{ width: dayPct + '%' }" /></div>
     </div>

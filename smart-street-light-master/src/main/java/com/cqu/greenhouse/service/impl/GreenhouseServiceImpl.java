@@ -6,6 +6,7 @@ import com.cqu.greenhouse.entity.*;
 import com.cqu.greenhouse.mapper.*;
 import com.cqu.greenhouse.service.IGreenhouseService;
 import com.cqu.greenhouse.sim.ClimateProfiles;
+import com.cqu.greenhouse.sim.GreenhouseGeometry;
 import com.cqu.greenhouse.sim.LightFieldModel;
 import com.cqu.vo.WebSocketMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -52,17 +53,19 @@ public class GreenhouseServiceImpl implements IGreenhouseService {
     @org.springframework.beans.factory.annotation.Value("${greenhouse.sim.interval-ms:1000}")
     private int intervalMs;
 
-    /** zoneId → 上次自动动作（仿真分钟） */
-    private final Map<String, Integer> lastActionSimMinute = new ConcurrentHashMap<>();
-    /** 仿真时刻：从 0 开始跑完整日 */
-    private volatile int simMinuteOfDay = 0;
+    /** zoneId → 上次自动动作（仿真分钟，浮点） */
+    private final Map<String, Double> lastActionSimMinute = new ConcurrentHashMap<>();
+    /** 仿真时刻（浮点分钟）：连续推进，避免整数大步跳动 */
+    private volatile double simMinuteOfDay = 0;
     /** zoneId → 当日曲线采样（内存，跨日清空） */
     private final Map<String, List<Map<String, Object>>> daySeries = new ConcurrentHashMap<>();
+    /** 全日采样上限：250ms×120s≈480；留余量 */
+    private static final int SERIES_CAP = 720;
 
-    private int minutesPerTick() {
-        // 1440 sim-min / compressSec ≈ per real second; × interval
+    /** 每 tick 推进的仿真分钟数（可为小数，全日仍约 dayCompressSec 墙钟秒）。 */
+    private double minutesPerTick() {
         double perSec = 1440.0 / Math.max(1, dayCompressSec);
-        return Math.max(1, (int) Math.round(perSec * (intervalMs / 1000.0)));
+        return Math.max(0.05, perSec * (intervalMs / 1000.0));
     }
 
     @Override
@@ -74,7 +77,7 @@ public class GreenhouseServiceImpl implements IGreenhouseService {
     public Map<String, Object> getZoneEffectiveLight(String zoneId) {
         GhZone zone = requireZone(zoneId);
         List<GhDevice> devices = devicesOf(zoneId);
-        int minute = currentMinuteOfDay();
+        double minute = currentMinuteOfDay();
         double outdoor = ClimateProfiles.outdoorParAt(zone.getClimateProfileId(), minute);
         LightFieldModel.FieldResult field = LightFieldModel.compute(zone, devices, outdoor);
         LightFieldModel.FieldResult natural = LightFieldModel.compute(zone, devices, outdoor, 100, false);
@@ -87,10 +90,12 @@ public class GreenhouseServiceImpl implements IGreenhouseService {
         out.put("name", zone.getName());
         out.put("recipeId", zone.getRecipeId());
         out.put("climateProfileId", zone.getClimateProfileId());
-        out.put("minuteOfDay", minute);
+        out.put("geometryId", GreenhouseGeometry.GEOMETRY_ID);
+        out.put("minuteOfDay", round(minute));
         out.put("dayProgress", minute / 1440.0);
         out.put("dayCompressSec", dayCompressSec);
-        out.put("minutesPerTick", minutesPerTick());
+        out.put("intervalMs", intervalMs);
+        out.put("minutesPerTick", round(minutesPerTick() * 100.0) / 100.0);
         out.put("outdoorParPpfd", round(outdoor));
         out.put("sunInPpfd", round(field.outdoorInPpfd()));
         out.put("naturalPpfd", round(natural.effectivePpfd()));
@@ -113,10 +118,16 @@ public class GreenhouseServiceImpl implements IGreenhouseService {
         }).toList());
         out.put("nx", field.nx());
         out.put("ny", field.ny());
-        out.put("lengthM", zone.getLengthM());
-        out.put("widthM", zone.getWidthM());
-        out.put("gutterHeightM", 2.8);
-        out.put("ridgeHeightM", 3.6);
+        double lengthM = zone.getLengthM() != null
+                ? zone.getLengthM().doubleValue() : GreenhouseGeometry.LENGTH_M;
+        double widthM = zone.getWidthM() != null
+                ? zone.getWidthM().doubleValue() : GreenhouseGeometry.WIDTH_M;
+        out.put("lengthM", lengthM);
+        out.put("widthM", widthM);
+        out.put("gutterHeightM", GreenhouseGeometry.GUTTER_HEIGHT_M);
+        out.put("ridgeHeightM", GreenhouseGeometry.RIDGE_HEIGHT_M);
+        out.put("measurePlaneZ", GreenhouseGeometry.measurePlaneZ(zoneId));
+        out.put("coordinateNoteZh", "西南角原点 · 长轴东西 · 南向采光");
         GhRecipe recipe = recipeMapper.selectOne(new LambdaQueryWrapper<GhRecipe>()
                 .eq(GhRecipe::getRecipeId, zone.getRecipeId()));
         if (recipe != null) {
@@ -361,9 +372,12 @@ public class GreenhouseServiceImpl implements IGreenhouseService {
     @Override
     @Transactional
     public void tickSimulation() {
-        int step = minutesPerTick();
-        int prev = simMinuteOfDay;
-        simMinuteOfDay = (simMinuteOfDay + step) % 1440;
+        double step = minutesPerTick();
+        double prev = simMinuteOfDay;
+        simMinuteOfDay = (simMinuteOfDay + step) % 1440.0;
+        if (simMinuteOfDay < 0) {
+            simMinuteOfDay += 1440.0;
+        }
         boolean newDay = simMinuteOfDay < prev;
 
         for (GhZone zone : listZones()) {
@@ -416,7 +430,7 @@ public class GreenhouseServiceImpl implements IGreenhouseService {
                     .average().orElse(0);
 
             Map<String, Object> sample = new LinkedHashMap<>();
-            sample.put("minuteOfDay", simMinuteOfDay);
+            sample.put("minuteOfDay", round(simMinuteOfDay));
             sample.put("outdoorPpfd", round(outdoor));
             sample.put("naturalPpfd", round(natural.effectivePpfd()));
             sample.put("sunInPpfd", round(field.outdoorInPpfd()));
@@ -427,10 +441,9 @@ public class GreenhouseServiceImpl implements IGreenhouseService {
             sample.put("shadeOpenPercent", zone.getShadeOpenPercent());
             sample.put("avgDimmingPercent", avgDim);
             daySeries.computeIfAbsent(zone.getZoneId(), k -> new ArrayList<>()).add(sample);
-            // 防止无限增长：最多约 2 天采样
             List<Map<String, Object>> series = daySeries.get(zone.getZoneId());
-            if (series.size() > 300) {
-                series.subList(0, series.size() - 300).clear();
+            if (series.size() > SERIES_CAP) {
+                series.subList(0, series.size() - SERIES_CAP).clear();
             }
 
             if (Boolean.TRUE.equals(zone.getAutoControl())) {
@@ -456,11 +469,11 @@ public class GreenhouseServiceImpl implements IGreenhouseService {
     @Override
     public Map<String, Object> getSimClock() {
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("minuteOfDay", simMinuteOfDay);
+        out.put("minuteOfDay", round(simMinuteOfDay));
         out.put("dayProgress", simMinuteOfDay / 1440.0);
         out.put("dayCompressSec", dayCompressSec);
         out.put("intervalMs", intervalMs);
-        out.put("minutesPerTick", minutesPerTick());
+        out.put("minutesPerTick", round(minutesPerTick() * 100.0) / 100.0);
         return out;
     }
 
@@ -498,9 +511,12 @@ public class GreenhouseServiceImpl implements IGreenhouseService {
         }
         // 冷却按仿真分钟：默认约 30 sim-min（压缩日下仍可多次动作）
         int cooldownMin = 30;
-        Integer last = lastActionSimMinute.get(zone.getZoneId());
+        Double last = lastActionSimMinute.get(zone.getZoneId());
         if (last != null) {
-            int delta = Math.floorMod(simMinuteOfDay - last, 1440);
+            double delta = simMinuteOfDay - last;
+            if (delta < 0) {
+                delta += 1440.0;
+            }
             if (delta > 0 && delta < cooldownMin) {
                 return;
             }
@@ -606,12 +622,13 @@ public class GreenhouseServiceImpl implements IGreenhouseService {
 
     // -------------------- helpers --------------------
 
-    private int currentMinuteOfDay() {
-        return Math.floorMod(simMinuteOfDay, 1440);
+    private double currentMinuteOfDay() {
+        double m = simMinuteOfDay % 1440.0;
+        return m < 0 ? m + 1440.0 : m;
     }
 
     /** 湿度：夜间高、正午低；遮阳闭合略抬升 */
-    private static double synthHumidity(int minute, Integer shadeOpen) {
+    private static double synthHumidity(double minute, Integer shadeOpen) {
         double day = Math.sin(Math.PI * ((minute - 360) / 720.0));
         day = Math.max(0, Math.min(1, day));
         double open = shadeOpen != null ? shadeOpen : 100;
@@ -619,7 +636,7 @@ public class GreenhouseServiceImpl implements IGreenhouseService {
         return Math.max(40, Math.min(95, base));
     }
 
-    private static double synthTemp(int minute, double outdoorPar) {
+    private static double synthTemp(double minute, double outdoorPar) {
         double day = Math.sin(Math.PI * ((minute - 360) / 720.0));
         day = Math.max(0, Math.min(1, day));
         return 18 + day * 12 + Math.min(6, outdoorPar / 200.0);

@@ -46,9 +46,17 @@ public final class ClimateProfiles {
     }
 
     public static double outdoorParAt(String profileId, int minuteOfDay) {
+        return outdoorParAt(profileId, (double) minuteOfDay);
+    }
+
+    /** 连续仿真用：对 minuteOfDay 做线性插值（可含小数）。 */
+    public static double outdoorParAt(String profileId, double minuteOfDay) {
         Profile p = get(profileId);
         List<Sample> s = p.samples();
-        int m = Math.floorMod(minuteOfDay, 1440);
+        double m = minuteOfDay % 1440.0;
+        if (m < 0) {
+            m += 1440.0;
+        }
         for (int i = 0; i < s.size() - 1; i++) {
             Sample a = s.get(i);
             Sample b = s.get(i + 1);
