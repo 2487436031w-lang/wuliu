@@ -247,11 +247,7 @@ function cancelCreateGroup(d: Device) {
           />
           <button type="button" class="ui-btn" @click="add">添加</button>
         </div>
-        <p class="hint-line">
-          添加后可在
-          <RouterLink to="/map">路灯地图</RouterLink>
-          上标定具体位置。
-        </p>
+        <p class="hint-line">添加后可在棚内设备列表与冠层光场中查看状态。</p>
         <p v-if="msg" class="ui-msg">{{ msg }}</p>
       </section>
 

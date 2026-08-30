@@ -70,6 +70,12 @@ public class MqttConfig {
     @Autowired
     private IAlarmLogsService alarmLogsService;
 
+    @Lazy
+    @Autowired(required = false)
+    private com.cqu.greenhouse.service.IGreenhouseService greenhouseService;
+
+    private static final String GH_TOPIC_PREFIX = "smart-greenhouse/";
+
     // ==================== 生命周期 ====================
 
     @PostConstruct
@@ -140,11 +146,30 @@ public class MqttConfig {
                     TOPIC_PREFIX + "+/status",
                     TOPIC_PREFIX + "+/light",
                     TOPIC_PREFIX + "+/alarm",
-            }, new int[]{0, 0, 1}); // 告警用 QoS 1
-            log.info("MQTT 已订阅硬件上报 topic: status / light / alarm");
+                    GH_TOPIC_PREFIX + "+/telemetry",
+                    GH_TOPIC_PREFIX + "+/status",
+                    GH_TOPIC_PREFIX + "+/alarm",
+            }, new int[]{0, 0, 1, 0, 0, 1});
+            log.info("MQTT 已订阅: smart-light status/light/alarm + smart-greenhouse telemetry/status/alarm");
         } catch (MqttException e) {
             log.error("MQTT 订阅 topic 失败", e);
         }
+    }
+
+    /** 光棚下行：smart-greenhouse/{sn}/command */
+    public boolean publishGreenhouseCommand(String deviceSn, Object payload) {
+        if (deviceSn == null) {
+            return false;
+        }
+        return publish(GH_TOPIC_PREFIX + deviceSn + "/command", payload, 1);
+    }
+
+    /** 光棚仿真遥测外发（可选，便于抓包演示） */
+    public boolean publishGreenhouseTelemetry(String deviceSn, Object payload) {
+        if (deviceSn == null) {
+            return false;
+        }
+        return publish(GH_TOPIC_PREFIX + deviceSn + "/telemetry", payload, 0);
     }
 
     // ==================== 下发指令 ====================
@@ -199,13 +224,12 @@ public class MqttConfig {
             String payload = new String(message.getPayload(), StandardCharsets.UTF_8);
             log.info("MQTT 收到消息: topic={}, payload={}", topic, payload);
 
-            // 解析 topic：smart-light/{deviceSn}/{type}
-            // topic 格式: smart-light/SN001/status
             String[] parts = topic.split("/");
             if (parts.length != 3) {
                 log.warn("MQTT 消息 topic 格式错误: {}", topic);
                 return;
             }
+            String prefix = parts[0];
             String deviceSn = parts[1];
             String type = parts[2];
 
@@ -214,6 +238,11 @@ public class MqttConfig {
                 return;
             }
             Map<String, Object> data = OBJECT_MAPPER.readValue(payload, Map.class);
+
+            if ("smart-greenhouse".equals(prefix)) {
+                handleGreenhouseMessage(type, data);
+                return;
+            }
 
             switch (type) {
                 case "status" -> handleStatusCallback(deviceSn, data);
@@ -275,6 +304,19 @@ public class MqttConfig {
             return;
         }
         alarmLogsService.createAlarm(deviceId, alarmType, message);
+    }
+
+    private void handleGreenhouseMessage(String type, Map<String, Object> data) {
+        if (greenhouseService == null) {
+            log.warn("光棚服务未就绪，丢弃 MQTT: type={}", type);
+            return;
+        }
+        switch (type) {
+            case "telemetry" -> greenhouseService.ingestTelemetry(data);
+            case "status" -> greenhouseService.ingestStatus(data);
+            case "alarm" -> log.info("光棚设备告警: {}", data);
+            default -> log.warn("未知光棚 MQTT 类型: {}", type);
+        }
     }
 
     // ==================== 工具方法 ====================

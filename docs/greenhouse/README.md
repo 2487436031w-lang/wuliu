@@ -1,15 +1,23 @@
-# 智能光棚 · 文档索引
+# 智慧光棚 · 文档索引
 
-> 产品一句话：面向**铁皮石斛**（辅：金线莲）设施栽培的光环境管控——3D 冠层光分布 + 光配方驱动的补光/遮光闭环 + 农艺审批工单。
+> **智慧光棚**：铁皮石斛（分阶段）+ 设施草莓（重庆寡照）光环境管控——空间光场热力 + 重庆日型 + 光配方补/遮闭环 + 农艺工单。  
+> 交接压缩版：[HANDOFF.md](../../HANDOFF.md)
 
 | 文档 | 用途 |
 |------|------|
-| [PRD-MVP.md](./PRD-MVP.md) | 场景、角色、MoSCoW、流程、验收 |
-| [HARDWARE-BOM.md](./HARDWARE-BOM.md) | 真实传感器/灯/遮阳选型与信号映射 |
-| [contracts/mqtt.md](./contracts/mqtt.md) | MQTT Topic 与 JSON 载荷 |
-| [contracts/light-recipe.md](./contracts/light-recipe.md) | 作物光配方与设备模型契约 |
-| [contracts/adapters.md](./contracts/adapters.md) | 仿真适配器 ↔ 真实驱动对照 |
+| [GREENHOUSE-LAYOUT.md](./GREENHOUSE-LAYOUT.md) | **棚体空间设计真源**（边界/朝向/床/灯/传感器） |
+| [layouts/cq-demo-bay-v1.json](./layouts/cq-demo-bay-v1.json) | 同上 · 机器可读坐标 |
+| [PROJECT.md](./PROJECT.md) | 项目描述 |
+| [TEAM-DIVISION.md](./TEAM-DIVISION.md) | 分工与 RACI |
+| [INTEGRATION.md](./INTEGRATION.md) | 对接（MQTT/HTTP） |
+| [SUBMIT.md](./SUBMIT.md) | 提交与验收清单 |
+| [IMPLEMENT.md](./IMPLEMENT.md) | 本地启动与已实现 |
+| [RESEARCH-SOLUTION.md](./RESEARCH-SOLUTION.md) | 作物/方案调研 |
+| [PRD-MVP.md](./PRD-MVP.md) | MoSCoW / 验收 |
+| [HARDWARE-BOM.md](./HARDWARE-BOM.md) | 商购型号 |
+| [contracts/mqtt.md](./contracts/mqtt.md) | MQTT |
+| [contracts/light-recipe.md](./contracts/light-recipe.md) | 光配方 |
+| [contracts/light-field-model.md](./contracts/light-field-model.md) | 光场计算 + ClimateProfile（引用布局真源） |
+| [contracts/adapters.md](./contracts/adapters.md) | sim ↔ 真机适配 |
 
-**与路灯仓关系：** 本期以光棚为展示主线；路灯代码可复用鉴权/MQTT/告警/工单模式，领域模型独立。
-
-**Agent 交接：** 仓库根目录 [HANDOFF.md](../../HANDOFF.md)（上下文压缩 + 下一步）。
+**工程顺序：** 棚体设计（本文 GREENHOUSE-LAYOUT）→ BOM/契约 → 仿真与前后端适配。路灯时代文档已移除。

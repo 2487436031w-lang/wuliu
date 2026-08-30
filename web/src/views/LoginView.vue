@@ -46,7 +46,7 @@ async function submit() {
   try {
     if (mode.value === 'login') {
       await auth.login(username.value, password.value)
-      router.replace('/dashboard')
+      router.replace('/greenhouse')
     } else {
       await auth.register(username.value, password.value, role.value)
       tip.value = '注册成功，请登录'
@@ -67,10 +67,10 @@ async function submit() {
       <div class="hero-badge">
         <BrandIcon :size="28" />
       </div>
-      <h1>城市照明，一屏尽览</h1>
+      <h1>冠层光环境，一屏尽览</h1>
       <p class="lead">
-        设备管理、光照阈值、告警与实时推送 — 对齐
-        <code class="mono">smart-street-light-master</code> 后端。
+        重庆日型驱动 · 光配方补光/遮阳闭环 · 农艺工单审批 — 产品名
+        <strong>智慧光棚</strong>。
       </p>
       <p class="mode-badge mono" :data-mode="apiMode">
         {{ isMockMode ? 'Mock 内存演示' : 'HTTP 真后端' }} · {{ apiMode }}
@@ -120,7 +120,7 @@ async function submit() {
       <p v-if="tip" class="ui-msg">{{ tip }}</p>
 
       <button type="submit" class="ui-btn ui-btn-warm submit" :disabled="loading">
-        {{ loading ? '提交中…' : mode === 'login' ? '进入灯廊' : '创建账号' }}
+        {{ loading ? '提交中…' : mode === 'login' ? '进入智慧光棚' : '创建账号' }}
       </button>
     </form>
   </div>

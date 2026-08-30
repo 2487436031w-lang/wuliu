@@ -1,0 +1,89 @@
+{
+  "layoutId": "cq-demo-bay-v1",
+  "version": "1.0",
+  "titleZh": "重庆示范单跨拱棚",
+  "frozenAt": "2026-08-30",
+  "coordinate": {
+    "origin": "southwest_inner_corner_floor",
+    "axis": { "x": "east", "y": "north", "z": "up" },
+    "unit": "m",
+    "solarNoonAzimuthDeg": 180,
+    "notesZh": "正午光从南侧（Y≈0）入射；长轴东西向"
+  },
+  "geometry": {
+    "geometryId": "cq-demo-bay-v1",
+    "type": "single_span_tunnel",
+    "lengthM": 16.0,
+    "widthM": 7.0,
+    "gutterHeightM": 2.8,
+    "ridgeHeightM": 3.8,
+    "coverTransmittance": 0.65,
+    "diffuseFractionDefault": 0.55,
+    "externalShadeZ": 3.5,
+    "externalShadeMaxBlockFraction": 0.85
+  },
+  "sunGradient": {
+    "direct": { "southBedFactor": 1.06, "midBedFactor": 1.0, "northBedFactor": 0.94 },
+    "diffuse": { "southBedFactor": 1.02, "midBedFactor": 1.0, "northBedFactor": 0.98 }
+  },
+  "grid": { "nx": 32, "ny": 14, "marginM": 0.25 },
+  "aisle": { "betweenZones": { "x0": 7.5, "x1": 8.5 } },
+  "zones": [
+    {
+      "zoneId": "ZONE-A",
+      "nameZh": "A区·铁皮石斛",
+      "cropDefault": "dendrobium-officinale",
+      "bounds": { "x0": 0.5, "x1": 7.5, "y0": 0.8, "y1": 6.2 },
+      "canopyHeightM": 0.5,
+      "measurePlaneZ": 0.5,
+      "beds": [
+        { "bedId": "BED-A-S", "y0": 1.0, "y1": 1.8, "zBed": 0.2, "role": "south" },
+        { "bedId": "BED-A-M", "y0": 3.1, "y1": 3.9, "zBed": 0.2, "role": "mid" },
+        { "bedId": "BED-A-N", "y0": 5.2, "y1": 6.0, "zBed": 0.2, "role": "north" }
+      ],
+      "lamps": [
+        { "deviceSn": "LAMP-ZONE-A-01", "x": 2.0, "y": 2.35, "z": 2.3, "maxPpfdAtCanopy": 160, "beamHalfAngleDeg": 60 },
+        { "deviceSn": "LAMP-ZONE-A-02", "x": 2.0, "y": 5.35, "z": 2.3, "maxPpfdAtCanopy": 160, "beamHalfAngleDeg": 60 },
+        { "deviceSn": "LAMP-ZONE-A-03", "x": 6.0, "y": 2.35, "z": 2.3, "maxPpfdAtCanopy": 160, "beamHalfAngleDeg": 60 },
+        { "deviceSn": "LAMP-ZONE-A-04", "x": 6.0, "y": 5.35, "z": 2.3, "maxPpfdAtCanopy": 160, "beamHalfAngleDeg": 60 }
+      ],
+      "sensors": [
+        { "deviceSn": "PAR-ZONE-A-01", "x": 2.0, "y": 1.4, "z": 0.5, "type": "PAR_SENSOR" },
+        { "deviceSn": "PAR-ZONE-A-02", "x": 4.0, "y": 3.5, "z": 0.5, "type": "PAR_SENSOR" },
+        { "deviceSn": "PAR-ZONE-A-03", "x": 6.0, "y": 5.6, "z": 0.5, "type": "PAR_SENSOR" }
+      ],
+      "shades": [
+        { "deviceSn": "SHADE-ZONE-A", "x": 4.0, "y": 3.5, "z": 3.5, "coverX0": 0, "coverX1": 8, "layer": "EXTERNAL", "maxBlockFraction": 0.85 }
+      ]
+    },
+    {
+      "zoneId": "ZONE-B",
+      "nameZh": "B区·金线莲/草莓切换",
+      "cropDefault": "anoectochilus-formosanus",
+      "bounds": { "x0": 8.5, "x1": 15.5, "y0": 0.8, "y1": 6.2 },
+      "canopyHeightM": 0.4,
+      "measurePlaneZ": 0.45,
+      "beds": [
+        { "bedId": "BED-B-S", "y0": 1.0, "y1": 1.8, "zBed": 0.2, "role": "south" },
+        { "bedId": "BED-B-M", "y0": 3.1, "y1": 3.9, "zBed": 0.2, "role": "mid" },
+        { "bedId": "BED-B-N", "y0": 5.2, "y1": 6.0, "zBed": 0.2, "role": "north" }
+      ],
+      "lamps": [
+        { "deviceSn": "LAMP-ZONE-B-01", "x": 10.0, "y": 2.35, "z": 2.3, "maxPpfdAtCanopy": 140, "beamHalfAngleDeg": 60 },
+        { "deviceSn": "LAMP-ZONE-B-02", "x": 10.0, "y": 5.35, "z": 2.3, "maxPpfdAtCanopy": 140, "beamHalfAngleDeg": 60 },
+        { "deviceSn": "LAMP-ZONE-B-03", "x": 13.5, "y": 3.85, "z": 2.3, "maxPpfdAtCanopy": 140, "beamHalfAngleDeg": 60 }
+      ],
+      "sensors": [
+        { "deviceSn": "PAR-ZONE-B-01", "x": 10.0, "y": 1.4, "z": 0.45, "type": "PAR_SENSOR" },
+        { "deviceSn": "PAR-ZONE-B-02", "x": 12.0, "y": 3.5, "z": 0.45, "type": "PAR_SENSOR" },
+        { "deviceSn": "PAR-ZONE-B-03", "x": 14.0, "y": 5.6, "z": 0.45, "type": "PAR_SENSOR" }
+      ],
+      "shades": [
+        { "deviceSn": "SHADE-ZONE-B", "x": 12.0, "y": 3.5, "z": 3.5, "coverX0": 8, "coverX1": 16, "layer": "EXTERNAL", "maxBlockFraction": 0.85 }
+      ]
+    }
+  ],
+  "envSensors": [
+    { "deviceSn": "ENV-BAY-01", "x": 8.0, "y": 3.5, "z": 1.6, "type": "AIR_TRH", "mvp": false }
+  ]
+}

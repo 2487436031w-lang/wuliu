@@ -24,6 +24,8 @@ export const useRealtimeStore = defineStore('realtime', () => {
   const deviceSyncTick = ref(0)
   /** 新告警时递增，供告警页 watch 刷新 */
   const alarmSyncTick = ref(0)
+  /** 光棚仿真/控制推送 */
+  const greenhouseTick = ref(0)
   let client: Client | null = null
   let timer: number | undefined
   let pollTimer: number | undefined
@@ -94,6 +96,9 @@ async function seedLatestLight() {
         client?.subscribe('/topic/device-online', () => {
           bumpDeviceSync()
         })
+        client?.subscribe('/topic/greenhouse', () => {
+          greenhouseTick.value += 1
+        })
       },
       onDisconnect: () => {
         connected.value = false
@@ -127,6 +132,7 @@ async function seedLatestLight() {
     latestAlarm,
     deviceSyncTick,
     alarmSyncTick,
+    greenhouseTick,
     connect,
     disconnect,
     clearAlarmToast,

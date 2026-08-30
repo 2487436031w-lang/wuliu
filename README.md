@@ -1,15 +1,18 @@
-# 智慧路灯「灯廊」
+# 智慧光棚
 
-BearPi 上报光照 → EMQX MQTT → Spring Boot → WebSocket → Vue 控制台。
+设施农业光环境管控：作物光配方 → 补光/遮阳闭环 → 农艺工单 · 重庆日型仿真（一天压缩 2 分钟）。
 
-## 组员最快上手
+## 上手
 
-先看 **[quickstart.md](quickstart.md)**（规矩 + 常用命令）。
+先看 **[docs/greenhouse/IMPLEMENT.md](docs/greenhouse/IMPLEMENT.md)** 与 **[HANDOFF.md](HANDOFF.md)**（含需求对照与已定方案）。
 
 ```powershell
 git clone https://github.com/xikunn/wuliu.git
 cd wuliu
-powershell -ExecutionPolicy Bypass -File scripts\team-bootstrap.ps1
+cd smart-street-light-master
+docker compose up -d
+powershell -ExecutionPolicy Bypass -File scripts\apply-greenhouse.ps1
+# 后端：Docker Maven 打 jar 或 IDE 以 local,secret 启动
 ```
 
 另开终端：
@@ -20,49 +23,30 @@ npm install
 npm run dev
 ```
 
-- Web：http://localhost:5173 （`admin` / `admin123`）  
-- 后端：http://localhost:8080  
-- EMQX 控制台：http://localhost:18083 （`admin` / `public`）
+- Web：http://localhost:5173 （`admin` / `admin123` → **冠层光场**）
+- API：http://localhost:8080 · EMQX：http://localhost:18083（`admin` / `public`）
 
-**完整说明（配置分工、板端、避免重复踩坑）：**  
-[`docs/collab/TEAM-ONBOARDING.md`](docs/collab/TEAM-ONBOARDING.md) · [`quickstart.md`](quickstart.md) · [`docs/sprint/README.md`](docs/sprint/README.md)（分工） · [`docs/defense/TECH-STACK-AND-DESIGN.md`](docs/defense/TECH-STACK-AND-DESIGN.md)（答辩）
+产品文档：[`docs/greenhouse/`](docs/greenhouse/)（**先读** [棚体空间设计](docs/greenhouse/GREENHOUSE-LAYOUT.md)）
 
 ## 目录
 
 | 路径 | 说明 |
 |------|------|
-| `smart-street-light-master/` | 后端 + `docker-compose.yml` + [`LOCAL-RUN.md`](smart-street-light-master/LOCAL-RUN.md) |
-| `web/` | 前端「灯廊」 |
-| `firmware/streetlight/` | **本仓跟踪的**路灯固件源码 |
-| `firmware/scripts/` | 同步/启用 sample、一键硬件准备 |
-| `docs/hardware/` | BearPi 规划与 [HARDWARE-E2E](docs/hardware/HARDWARE-E2E.md) |
-| `docs/collab/` | 协作与联调说明 |
-| `docs/sprint/` | **下一迭代**：工程组 / Agent 组分工与详细做法 |
-| `docs/defense/` | **答辩**：技术栈、PPT 提纲、迭代/Agent、架构速览 |
+| `docs/greenhouse/GREENHOUSE-LAYOUT.md` | **棚体设计真源**（边界/日光/床/灯/传感器） |
+| `docs/greenhouse/layouts/` | 机器可读布局 JSON |
+| `docs/greenhouse/` | PRD、BOM、契约、实施说明 |
+| `smart-street-light-master/` | Spring Boot + Docker（PG/EMQX）+ `gh_*` |
+| `web/` | 前端控制台 |
+| `HANDOFF.md` | Agent / 组员交接 |
 
-BearPi 完整 SDK **不在本仓**，默认放在 `D:\ohos\bearpi-hm_nano`（见 [`firmware/README.md`](firmware/README.md)）。
+目录名仍含 `street-light`（历史包名）；**产品是智慧光棚，不是城市路灯。**
 
-## 本地 Docker（云端依赖）
+## Docker
 
 ```powershell
 cd smart-street-light-master
-docker compose up -d          # PG:5433  EMQX:1883
-# 或一键编译跑后端：
-powershell -ExecutionPolicy Bypass -File scripts\run-local.ps1
+docker compose up -d   # PG:5433  EMQX:1883
+powershell -ExecutionPolicy Bypass -File scripts\docker-cleanup.ps1 -AlsoImages
 ```
 
-勿提交：`application-secret.yml`、`web/.env.local`、`firmware/streetlight/streetlight_config.h`。
-
-## 硬件（可选）
-
-```powershell
-powershell -ExecutionPolicy Bypass -File firmware\scripts\setup-hardware-e2e.ps1 `
-  -WifiSsid "..." -WifiPsk "..." -DeviceSn "SN-RM-001" -BrokerIp "<PC局域网IP>"
-```
-
-详情：[`docs/hardware/HARDWARE-E2E.md`](docs/hardware/HARDWARE-E2E.md)
-
-## 契约
-
-真源：[`smart-street-light-master/API文档.md`](smart-street-light-master/API文档.md)  
-索引：[`docs/contracts/`](docs/contracts/)
+勿提交：`application-secret.yml`、`web/.env.local`。

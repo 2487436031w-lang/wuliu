@@ -31,7 +31,7 @@ function Ensure-Copy($src, $dst, $label) {
     Write-Host "[new] $label <- $(Split-Path $src -Leaf)" -ForegroundColor Green
 }
 
-Write-Host "=== team-bootstrap (streetlight) ===" -ForegroundColor Cyan
+Write-Host "=== team-bootstrap (智慧光棚) ===" -ForegroundColor Cyan
 Write-Host "Repo: $Root"
 
 Write-Host "`n--- 1) Local config templates ---" -ForegroundColor Cyan
@@ -43,10 +43,6 @@ Ensure-Copy `
     (Join-Path $Root 'web\.env.example') `
     (Join-Path $Root 'web\.env.local') `
     'frontend .env.local'
-Ensure-Copy `
-    (Join-Path $Root 'firmware\streetlight\streetlight_config.h.example') `
-    (Join-Path $Root 'firmware\streetlight\streetlight_config.h') `
-    'firmware config (edit WiFi/Broker before flash)'
 
 if ($FrontendOnly) {
     Write-Host "`n--- Frontend only ---" -ForegroundColor Cyan

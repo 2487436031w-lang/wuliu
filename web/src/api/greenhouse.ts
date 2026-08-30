@@ -1,0 +1,158 @@
+import type { ApiResult } from '../types/domain'
+
+const SESSION_KEY = 'streetlight.session'
+const base = (import.meta.env.VITE_API_BASE as string) || ''
+
+function token(): string | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY)
+    return raw ? (JSON.parse(raw) as { token: string }).token : null
+  } catch {
+    return null
+  }
+}
+
+async function http<T>(path: string, init: RequestInit = {}): Promise<ApiResult<T>> {
+  const headers = new Headers(init.headers)
+  headers.set('Content-Type', 'application/json')
+  const t = token()
+  if (t) headers.set('token', t)
+  const res = await fetch(`${base}${path}`, { ...init, headers })
+  const text = await res.text()
+  if (!text) throw new Error(`后端无响应 (${res.status})`)
+  return JSON.parse(text) as ApiResult<T>
+}
+
+export type GhZone = {
+  zoneId: string
+  name: string
+  recipeId: string
+  climateProfileId: string
+  autoControl: boolean
+  shadeOpenPercent: number
+  lastEffectivePpfd?: number
+  lastDli?: number
+  lengthM?: number
+  widthM?: number
+}
+
+export type GhRecipe = {
+  recipeId: string
+  cropNameZh: string
+  stage: string
+  ppfdTargetMin: number
+  ppfdTargetMax: number
+  ppfdHardMin: number
+  ppfdHardMax: number
+  dliTargetMin?: number
+  dliTargetMax?: number
+}
+
+export type GhDevice = {
+  deviceSn: string
+  deviceName: string
+  zoneId: string
+  deviceType: string
+  dimmingPercent?: number
+  shadeOpenPercent?: number
+  lastPpfd?: number
+  onlineStatus?: string
+  posX?: number
+  posY?: number
+  posZ?: number
+}
+
+export type GhWorkOrder = {
+  id: number
+  zoneId: string
+  status: string
+  reason: string
+  suggestedDimmingPct?: number
+  suggestedShadePct?: number
+  createdAt?: string
+}
+
+export type DaySeriesPoint = {
+  minuteOfDay: number
+  outdoorPpfd: number
+  naturalPpfd: number
+  sunInPpfd: number
+  ledPpfd: number
+  controlledPpfd: number
+  humidityPct: number
+  temperatureC: number
+  shadeOpenPercent: number
+  avgDimmingPercent: number
+}
+
+export type GhEffectiveLight = {
+  zoneId: string
+  name: string
+  recipeId: string
+  climateProfileId: string
+  minuteOfDay: number
+  dayProgress?: number
+  dayCompressSec?: number
+  minutesPerTick?: number
+  outdoorParPpfd: number
+  sunInPpfd: number
+  naturalPpfd?: number
+  ledPpfd?: number
+  effectivePpfd: number
+  humidityPct?: number
+  temperatureC?: number
+  dliSoFar: number
+  shadeOpenPercent: number
+  autoControl: boolean
+  nx: number
+  ny: number
+  lengthM: number
+  widthM: number
+  gutterHeightM?: number
+  ridgeHeightM?: number
+  grid: { x: number; y: number; ppfd: number; sunPpfd?: number; ledPpfd?: number }[]
+  devices: GhDevice[]
+  recipe?: GhRecipe
+  sensorPpfd?: Record<string, number>
+  series?: DaySeriesPoint[]
+}
+
+export const greenhouseApi = {
+  zones: () => http<GhZone[]>('/greenhouse/zones'),
+  effectiveLight: (zoneId: string) => http<GhEffectiveLight>(`/greenhouse/zones/${zoneId}/effective-light`),
+  recipes: () => http<GhRecipe[]>('/greenhouse/recipes'),
+  bindRecipe: (zoneId: string, recipeId: string) =>
+    http<string>(`/greenhouse/zones/${zoneId}/recipe`, {
+      method: 'PUT',
+      body: JSON.stringify({ recipeId }),
+    }),
+  setClimate: (zoneId: string, profileId: string) =>
+    http<string>(`/greenhouse/zones/${zoneId}/climate-profile`, {
+      method: 'PUT',
+      body: JSON.stringify({ profileId }),
+    }),
+  setAuto: (zoneId: string, enabled: boolean) =>
+    http<string>(`/greenhouse/zones/${zoneId}/auto-control`, {
+      method: 'PUT',
+      body: JSON.stringify({ enabled }),
+    }),
+  workOrders: (status?: string) =>
+    http<GhWorkOrder[]>(`/greenhouse/work-orders${status ? `?status=${status}` : ''}`),
+  approve: (id: number) => http<string>(`/greenhouse/work-orders/${id}/approve`, { method: 'POST' }),
+  reject: (id: number) => http<string>(`/greenhouse/work-orders/${id}/reject`, { method: 'POST' }),
+  complete: (id: number) => http<string>(`/greenhouse/work-orders/${id}/complete`, { method: 'POST' }),
+  dimming: (sn: string, dimmingPercent: number) =>
+    http<string>(`/greenhouse/lamps/${sn}/dimming`, {
+      method: 'POST',
+      body: JSON.stringify({ dimmingPercent }),
+    }),
+  shade: (sn: string, shadeOpenPercent: number) =>
+    http<string>(`/greenhouse/shades/${sn}/open-percent`, {
+      method: 'POST',
+      body: JSON.stringify({ shadeOpenPercent }),
+    }),
+  climateProfiles: () => http<Record<string, { id: string; labelZh: string }>>('/greenhouse/climate-profiles'),
+  devices: (zoneId?: string) =>
+    http<GhDevice[]>(`/greenhouse/devices${zoneId ? `?zoneId=${encodeURIComponent(zoneId)}` : ''}`),
+  resetDay: () => http<string>('/greenhouse/sim/reset-day', { method: 'POST' }),
+}

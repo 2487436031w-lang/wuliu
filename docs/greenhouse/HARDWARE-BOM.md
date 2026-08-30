@@ -109,15 +109,19 @@
 
 ## 4. 分区与安装约定（仿真/真棚共用）
 
+**平面与三维坐标真源：** [GREENHOUSE-LAYOUT.md](./GREENHOUSE-LAYOUT.md)（`cq-demo-bay-v1`：16×7 m，长轴东西，南向采光）。
+
 | ID 前缀 | 含义 | 示例 |
 |---------|------|------|
 | `PAR-` | PPFD/光照测点 | `PAR-ZONE-A-01` |
 | `LAMP-` | 补光灯 | `LAMP-ZONE-A-01` |
 | `SHADE-` | 遮阳轴/网 | `SHADE-ZONE-A` |
 | `ZONE-` | 逻辑分区（作物床） | `ZONE-A` |
+| `BED-` | 栽培床（设计层） | `BED-A-S` |
+| `ENV-` | 空气温湿度（Should） | `ENV-BAY-01` |
 
-每测点、每灯具在 3D 中有 `position: {x,y,z}`（米）。  
-一区建议：≥3 个测点 + ≥2 盏灯 + 1 路遮阳（演示可缩到 1+1+1）。
+每测点、每灯具在 3D 中有 `position: {x,y,z}`（米），**必须与布局 JSON 一致**。  
+一区：≥3 个测点 + 多灯覆盖三床 + 半跨外遮阳。
 
 ---
 

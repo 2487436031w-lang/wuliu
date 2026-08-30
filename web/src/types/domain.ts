@@ -1,11 +1,11 @@
 export type Role = 'MUNICIPAL_STAFF' | 'ADMIN'
 
 export const ROLE_LABEL: Record<Role, string> = {
-  MUNICIPAL_STAFF: '市政人员',
-  ADMIN: '路灯管理员',
+  MUNICIPAL_STAFF: '种植员',
+  ADMIN: '场务管理员',
 }
 
-/** 路灯后端：成功 code=200；Header 名 token */
+/** 后端：成功 code=200；Header 名 token */
 export interface ApiResult<T> {
   code: number
   errorMsg: string | null

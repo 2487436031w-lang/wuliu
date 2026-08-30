@@ -1,388 +1,333 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
-import { api, isMockMode } from '../api/client'
+import {
+  greenhouseApi,
+  type GhDevice,
+  type GhEffectiveLight,
+  type GhWorkOrder,
+  type GhZone,
+} from '../api/greenhouse'
 import { useRealtimeStore } from '../stores/realtime'
-import type { AlarmStatistics, Device, DeviceStatistics, ThresholdConfig } from '../types/domain'
 
 const realtime = useRealtimeStore()
-const stats = ref<DeviceStatistics | null>(null)
-const alarmStats = ref<AlarmStatistics | null>(null)
-const threshold = ref<ThresholdConfig | null>(null)
-const offlineDevices = ref<Device[]>([])
-const autoSwitchToday = ref(0)
+const zones = ref<GhZone[]>([])
+const lights = ref<Record<string, GhEffectiveLight>>({})
+const devices = ref<GhDevice[]>([])
+const orders = ref<GhWorkOrder[]>([])
+const err = ref('')
+let poll: number | undefined
 
-function isToday(iso: string) {
-  const d = new Date(iso)
-  const n = new Date()
-  return (
-    d.getFullYear() === n.getFullYear() &&
-    d.getMonth() === n.getMonth() &&
-    d.getDate() === n.getDate()
-  )
-}
+const pendingOrders = computed(() => orders.value.filter((o) => o.status === 'PENDING'))
+const onlineCount = computed(() => devices.value.filter((d) => d.onlineStatus === 'ONLINE').length)
+const lampCount = computed(() => devices.value.filter((d) => d.deviceType === 'GROW_LAMP').length)
+const sensorCount = computed(() => devices.value.filter((d) => d.deviceType === 'PAR_SENSOR').length)
 
-async function loadOps() {
-  const [offlineRes, logsRes] = await Promise.all([
-    api.listDevices({ page: 1, pageSize: 20, onlineStatus: 'OFFLINE' }),
-    api.listControlLogs({ page: 1, pageSize: 200, source: 'AUTO' }),
-  ])
-  if (offlineRes.code === 200) offlineDevices.value = offlineRes.data.records
-  if (logsRes.code === 200) {
-    autoSwitchToday.value = logsRes.data.records.filter((c) => isToday(c.createdAt)).length
+const primary = computed(() => {
+  const z = zones.value[0]
+  if (!z) return null
+  return lights.value[z.zoneId] || null
+})
+
+async function load() {
+  err.value = ''
+  try {
+    const [zRes, dRes, oRes] = await Promise.all([
+      greenhouseApi.zones(),
+      greenhouseApi.devices(),
+      greenhouseApi.workOrders(),
+    ])
+    if (zRes.code !== 200) throw new Error(zRes.errorMsg || '分区加载失败')
+    if (dRes.code !== 200) throw new Error(dRes.errorMsg || '设备加载失败')
+    zones.value = zRes.data || []
+    devices.value = dRes.data || []
+    if (oRes.code === 200) orders.value = oRes.data || []
+
+    const map: Record<string, GhEffectiveLight> = {}
+    await Promise.all(
+      zones.value.map(async (z) => {
+        const el = await greenhouseApi.effectiveLight(z.zoneId)
+        if (el.code === 200 && el.data) map[z.zoneId] = el.data
+      }),
+    )
+    lights.value = map
+  } catch (e) {
+    err.value = e instanceof Error ? e.message : String(e)
   }
 }
 
-async function load() {
-  const [d, a, t] = await Promise.all([
-    api.deviceStatistics(),
-    api.alarmStatistics(),
-    api.getThreshold(),
-  ])
-  if (d.code === 200) stats.value = d.data
-  if (a.code === 200) alarmStats.value = a.data
-  if (t.code === 200) threshold.value = t.data
-  await loadOps()
+function clockLabel(minute: number) {
+  const h = Math.floor(minute / 60)
+  const m = minute % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
-let statsPoll: number | undefined
 onMounted(() => {
   void load()
-  statsPoll = window.setInterval(() => {
-    void load()
-  }, 4000)
+  poll = window.setInterval(() => void load(), 6000)
 })
 onUnmounted(() => {
-  if (statsPoll) window.clearInterval(statsPoll)
+  if (poll) window.clearInterval(poll)
 })
 
 watch(
-  () => [realtime.deviceSyncTick, realtime.alarmSyncTick],
-  () => {
-    load()
-  },
+  () => realtime.greenhouseTick,
+  () => void load(),
 )
-
-const tiles = computed(() => {
-  if (!stats.value) return []
-  return [
-    { label: '设备总数', value: stats.value.totalCount, to: '/devices' },
-    {
-      label: '在线',
-      value: stats.value.onlineCount,
-      to: '/devices',
-      query: { onlineStatus: 'ONLINE' },
-      tone: 'ok',
-    },
-    {
-      label: '离线',
-      value: stats.value.offlineCount,
-      to: '/devices',
-      query: { onlineStatus: 'OFFLINE' },
-    },
-    {
-      label: '已开灯',
-      value: stats.value.onCount,
-      to: '/devices',
-      query: { status: 'ON' },
-      tone: 'on',
-    },
-    {
-      label: '已关灯',
-      value: stats.value.offCount,
-      to: '/devices',
-      query: { status: 'OFF' },
-    },
-  ]
-})
-
-const alarmTile = computed(() => ({
-  label: '待处理告警',
-  value: alarmStats.value?.activeCount ?? 0,
-}))
 </script>
 
 <template>
-  <div class="ui-page ui-page-fill dashboard-page">
-    <RouterLink to="/lights" class="hero page-hero ui-link-card slide-up-enter-active">
+  <div class="ui-page ui-page-fill dash">
+    <p v-if="err" class="err">{{ err }}</p>
+
+    <RouterLink to="/greenhouse" class="hero page-hero ui-link-card slide-up-enter-active">
       <div class="hero-main">
-        <p class="eyebrow">实时光照 · 点击查看趋势</p>
+        <p class="eyebrow">智慧光棚 · 区有效 PPFD</p>
         <p class="hero-value mono">
-          {{ realtime.latestLight ? realtime.latestLight.lightIntensity.toFixed(1) : '—' }}
-          <span class="unit">lux</span>
+          {{ primary ? primary.effectivePpfd.toFixed(1) : '—' }}
+          <span class="unit">µmol·m⁻²·s⁻¹</span>
         </p>
-        <p class="hero-meta mono">{{ isMockMode ? 'Mock 定时模拟' : '后端 WebSocket' }}</p>
+        <p class="hero-meta mono">
+          {{ primary ? `${primary.name} · 仿真 ${clockLabel(primary.minuteOfDay)}` : '加载中…' }}
+        </p>
       </div>
       <div class="hero-side">
-        <p class="threshold-hint">
-          开灯 &lt; {{ threshold?.lightThresholdOn ?? '—' }} lux<br />
-          关灯 &gt; {{ threshold?.lightThresholdOff ?? '—' }} lux
+        <p class="threshold-hint" v-if="primary?.recipe">
+          目标 {{ primary.recipe.ppfdTargetMin }}–{{ primary.recipe.ppfdTargetMax }}<br />
+          硬限 {{ primary.recipe.ppfdHardMin }}–{{ primary.recipe.ppfdHardMax }}
         </p>
-        <RouterLink to="/threshold" class="hero-link" @click.stop>修改阈值 →</RouterLink>
+        <span class="hero-link">进入冠层光场 →</span>
       </div>
     </RouterLink>
 
-    <div v-if="stats" class="ui-fill-body dashboard-body slide-up-enter-active slide-up-delay-1">
+    <div class="ui-fill-body dashboard-body slide-up-enter-active slide-up-delay-1">
       <section class="ops ui-card">
-        <h3 class="ui-section-title">值班待办</h3>
+        <h3 class="ui-section-title">场务待办</h3>
         <div class="ops-grid">
-          <RouterLink
-            :to="{ path: '/alarms', query: { status: 'ACTIVE' } }"
-            class="ops-item ui-link-card"
-          >
-            <p class="ops-label">活跃告警</p>
-            <strong class="ui-stat-value bad">{{ alarmTile.value }}</strong>
+          <RouterLink to="/greenhouse" class="ops-item ui-link-card">
+            <p class="ops-label">待审批工单</p>
+            <strong class="ui-stat-value" :class="{ bad: pendingOrders.length }">
+              {{ pendingOrders.length }}
+            </strong>
           </RouterLink>
-
           <div class="ops-item">
-            <p class="ops-label">今日自动开关</p>
-            <strong class="ui-stat-value on">{{ autoSwitchToday }}</strong>
-            <RouterLink to="/logs" class="ops-link">控制日志 →</RouterLink>
+            <p class="ops-label">棚内设备在线</p>
+            <strong class="ui-stat-value on">{{ onlineCount }}/{{ devices.length }}</strong>
+            <p class="ops-meta">测点 {{ sensorCount }} · 补光灯 {{ lampCount }}</p>
           </div>
-
-          <div class="ops-item ops-item-list">
-            <p class="ops-label">离线设备（{{ offlineDevices.length }}）</p>
-            <div class="offline-panel">
-              <ul v-if="offlineDevices.length" class="offline-list">
-                <li v-for="d in offlineDevices" :key="d.id">
-                  <RouterLink :to="`/devices`">{{ d.deviceName }}</RouterLink>
-                  <span class="mono sn">{{ d.deviceSn }}</span>
-                </li>
-              </ul>
-              <p v-else class="ops-empty">全部在线 ✓</p>
-            </div>
+          <div class="ops-item">
+            <p class="ops-label">今日 DLI（主区）</p>
+            <strong class="ui-stat-value">{{ primary?.dliSoFar ?? '—' }}</strong>
+            <p class="ops-meta">mol·m⁻²·d⁻¹</p>
           </div>
         </div>
       </section>
 
-      <div class="stat-grid">
-        <RouterLink
-          v-for="tile in tiles"
-          :key="tile.label"
-          :to="{ path: tile.to, query: tile.query }"
-          class="stat ui-card ui-card-compact ui-link-card"
-        >
-          <p class="stat-label">{{ tile.label }}</p>
-          <strong :class="['ui-stat-value', tile.tone]">{{ tile.value }}</strong>
-        </RouterLink>
+      <section class="zones">
+        <h3 class="ui-section-title">栽培分区</h3>
+        <div class="zone-grid">
+          <RouterLink
+            v-for="z in zones"
+            :key="z.zoneId"
+            to="/greenhouse"
+            class="zone-card ui-card ui-link-card"
+          >
+            <p class="z-id mono">{{ z.zoneId }}</p>
+            <strong>{{ z.name }}</strong>
+            <p class="z-ppfd mono">
+              {{ lights[z.zoneId]?.effectivePpfd?.toFixed?.(1) ?? z.lastEffectivePpfd ?? '—' }}
+              <span>PPFD</span>
+            </p>
+            <p class="z-meta">
+              {{ z.climateProfileId }} · 遮阳 {{ lights[z.zoneId]?.shadeOpenPercent ?? z.shadeOpenPercent }}%
+            </p>
+            <p class="z-recipe mono">{{ z.recipeId }}</p>
+          </RouterLink>
+        </div>
+      </section>
 
-        <RouterLink
-          :to="{ path: '/alarms', query: { status: 'ACTIVE' } }"
-          class="stat ui-card ui-card-compact ui-link-card"
-        >
-          <p class="stat-label">{{ alarmTile.label }}</p>
-          <strong class="ui-stat-value bad">{{ alarmTile.value }}</strong>
-        </RouterLink>
-      </div>
+      <section class="orders ui-card" v-if="pendingOrders.length">
+        <h3 class="ui-section-title">待处理建议</h3>
+        <ul>
+          <li v-for="o in pendingOrders.slice(0, 5)" :key="o.id">
+            <span class="mono">{{ o.zoneId }}</span>
+            {{ o.reason }}
+          </li>
+        </ul>
+        <RouterLink to="/greenhouse" class="ops-link">去审批 →</RouterLink>
+      </section>
     </div>
   </div>
 </template>
 
 <style scoped>
+.dash {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 0;
+}
+
+.err {
+  background: #f7e4d8;
+  border-left: 3px solid #b85c38;
+  padding: 0.65rem 0.85rem;
+  margin: 0;
+}
+
 .hero {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  gap: var(--space-6);
-  padding: var(--space-6) var(--space-8);
-  background: linear-gradient(135deg, #1d1d1f 0%, #2c2c2e 100%);
-  color: #f5f5f7;
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
+  gap: 1.5rem;
+  padding: 1.25rem 1.5rem;
   text-decoration: none;
+  color: inherit;
 }
 
 .eyebrow {
   margin: 0;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  letter-spacing: var(--tracking-wide);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
+  opacity: 0.72;
 }
 
 .hero-value {
-  margin: var(--space-2) 0 0;
-  font-size: clamp(36px, 5vw, 56px);
-  font-weight: 600;
-  color: var(--sodium);
-  line-height: 1;
-  letter-spacing: -0.03em;
+  margin: 0.35rem 0;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 700;
+  line-height: 1.1;
 }
 
 .unit {
-  font-size: var(--text-xl);
-  margin-left: var(--space-2);
-  opacity: 0.65;
+  font-size: 0.9rem;
   font-weight: 500;
+  opacity: 0.7;
+  margin-left: 0.25rem;
 }
 
 .hero-meta {
-  margin: var(--space-2) 0 0;
-  font-size: var(--text-xs);
-  color: rgba(255, 255, 255, 0.4);
-}
-
-.hero-side {
-  text-align: right;
+  margin: 0;
+  opacity: 0.65;
+  font-size: 0.85rem;
 }
 
 .threshold-hint {
-  margin: 0;
-  font-size: var(--text-sm);
-  line-height: 1.6;
-  color: rgba(255, 255, 255, 0.7);
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  opacity: 0.8;
 }
 
 .hero-link {
-  display: inline-block;
-  margin-top: var(--space-3);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--sodium);
-  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .dashboard-body {
-  min-height: 0;
-}
-
-.dashboard-body .ops {
-  flex-shrink: 0;
-}
-
-.dashboard-body .stat-grid {
-  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .ops-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-3);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+@media (max-width: 900px) {
+  .ops-grid {
+    grid-template-columns: 1fr;
+  }
+  .hero {
+    flex-direction: column;
+  }
 }
 
 .ops-item {
-  padding: var(--space-4);
-  background: var(--paper);
-  border-radius: var(--radius-md);
-  display: block;
-  text-decoration: none;
-  color: inherit;
-}
-
-.ops-item-list {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
+  padding: 0.75rem;
 }
 
 .ops-label {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--ink-soft);
-  font-weight: 500;
-  flex-shrink: 0;
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  opacity: 0.7;
 }
 
-.ops-item .ui-stat-value {
-  display: block;
-  margin-top: var(--space-2);
+.ops-meta {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  opacity: 0.65;
 }
 
 .ops-link {
   display: inline-block;
-  margin-top: var(--space-2);
-  font-size: var(--text-xs);
-  font-weight: 500;
-  color: var(--accent);
-  text-decoration: none;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
 }
 
-.offline-panel {
-  flex: 1 1 0;
-  min-height: 0;
-  max-height: min(160px, 24vh);
-  margin-top: var(--space-2);
-  overflow-y: auto;
-  overscroll-behavior: contain;
+.bad {
+  color: #b85c38;
 }
 
-.offline-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.on {
+  color: var(--accent, #2f5d4a);
 }
 
-.offline-list li {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: var(--space-2) 0;
-  font-size: var(--text-sm);
-  border-bottom: 1px solid var(--line);
-}
-
-.offline-list li:last-child {
-  border-bottom: none;
-}
-
-.offline-list a {
-  color: var(--accent);
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.sn {
-  font-size: var(--text-xs);
-  color: var(--ink-muted);
-}
-
-.ops-empty {
-  margin: var(--space-2) 0 0;
-  font-size: var(--text-sm);
-  color: var(--online);
-  font-weight: 500;
-}
-
-.stat-grid {
+.zone-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-3);
-  flex-shrink: 0;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.85rem;
 }
 
-.stat {
-  display: block;
+.zone-card {
+  padding: 1rem;
   text-decoration: none;
   color: inherit;
-}
-
-.stat-label {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--ink-soft);
-  font-weight: 500;
-}
-
-.stat .ui-stat-value {
   display: block;
-  margin-top: var(--space-2);
 }
 
-@media (max-width: 800px) {
-  .hero {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: var(--space-5);
-  }
+.z-id {
+  margin: 0;
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
 
-  .hero-side {
-    text-align: left;
-  }
+.zone-card strong {
+  display: block;
+  margin: 0.25rem 0 0.5rem;
+  font-size: 1.05rem;
+}
 
-  .stat-grid,
-  .ops-grid {
-    grid-template-columns: 1fr 1fr;
-  }
+.z-ppfd {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.z-ppfd span {
+  font-size: 0.75rem;
+  font-weight: 500;
+  opacity: 0.65;
+  margin-left: 0.25rem;
+}
+
+.z-meta,
+.z-recipe {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  opacity: 0.7;
+  word-break: break-all;
+}
+
+.orders ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.orders li {
+  margin-bottom: 0.4rem;
+  line-height: 1.4;
 }
 </style>

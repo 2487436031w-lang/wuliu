@@ -14,3 +14,10 @@ mqtt:
 streetlight:
   demo:
     mock-keepalive: false
+
+# 智慧光棚：一天压缩到 2 分钟（120s），每 1s tick 推进约 12 仿真分钟
+greenhouse:
+  sim:
+    enabled: true
+    interval-ms: 1000
+    day-compress-sec: 120

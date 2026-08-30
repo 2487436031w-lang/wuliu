@@ -1,22 +1,27 @@
 # 多路模拟路灯持续上报（MQTT → EMQX → 后端）
+# 推荐：docker compose --profile lamp-fleet up -d
+# 本脚本：临时拉起 / -Stop 停止（转调 compose profile）
+#
 # 用法:
 #   powershell -ExecutionPolicy Bypass -File scripts\mqtt-simulate-fleet.ps1
-#   powershell -ExecutionPolicy Bypass -File scripts\mqtt-simulate-fleet.ps1 -IntervalSec 5
 #   powershell -ExecutionPolicy Bypass -File scripts\mqtt-simulate-fleet.ps1 -Stop
 
 param(
     [int]$IntervalSec = 8,
-    [string]$EmqxContainer = "streetlight-emqx",
-    [string]$SimName = "streetlight-fleet-sim",
     [switch]$Stop
 )
 
 $ErrorActionPreference = "Stop"
-$ScriptDir = $PSScriptRoot
-$LoopSh = Join-Path $ScriptDir "mqtt-fleet-loop.sh"
+$Root = Split-Path $PSScriptRoot -Parent
+$SimName = "streetlight-fleet-sim"
+Set-Location $Root
 
-if (-not (Test-Path $LoopSh)) {
-    throw "Missing $LoopSh"
+if ($Stop) {
+    $existing = docker ps -aq -f "name=^/${SimName}$" 2>$null
+    if ($existing) { docker rm -f $SimName | Out-Null }
+    docker compose --profile lamp-fleet stop lamp-fleet 2>$null | Out-Null
+    Write-Host "Fleet simulator stopped."
+    exit 0
 }
 
 $existing = docker ps -aq -f "name=^/${SimName}$" 2>$null
@@ -25,45 +30,14 @@ if ($existing) {
     docker rm -f $SimName | Out-Null
 }
 
-if ($Stop) {
-    Write-Host "Fleet simulator stopped."
-    exit 0
-}
-
-$emqx = docker ps -q -f "name=^/${EmqxContainer}$"
-if (-not $emqx) {
-    throw "EMQX container '$EmqxContainer' is not running. Start Docker compose first."
-}
-
-# Docker Desktop on Windows: mount host path into Linux container
-$loopMount = ($LoopSh -replace '\\', '/')
-if ($loopMount -match '^([A-Za-z]):') {
-    $drive = $Matches[1].ToLower()
-    $loopMount = "/$drive" + $loopMount.Substring(2)
-}
-
-Write-Host "Starting fleet simulator → EMQX ($EmqxContainer), interval ${IntervalSec}s"
-Write-Host "  Devices: SN-RM-002/003, SN-JF-001/002, SN-BJ-001/002, SN-XQ-001"
-Write-Host "  (SN-RM-001 left for real BearPi)"
-Write-Host "  Stop: powershell -ExecutionPolicy Bypass -File scripts\mqtt-simulate-fleet.ps1 -Stop"
-
-docker run -d --name $SimName `
-    --network "container:$EmqxContainer" `
-    -e INTERVAL_SEC="$IntervalSec" `
-    -e BROKER_HOST="127.0.0.1" `
-    -e BROKER_PORT="1883" `
-    -e TZ="Asia/Shanghai" `
-    -v "${loopMount}:/fleet-loop.sh:ro" `
-    eclipse-mosquitto:2 `
-    sh /fleet-loop.sh | Out-Null
-
+Write-Host "Starting lamp-fleet via docker compose profile (interval hint: ${IntervalSec}s)..."
+docker compose --profile lamp-fleet up -d lamp-fleet
 Start-Sleep -Seconds 2
 $running = docker ps -q -f "name=^/${SimName}$"
 if (-not $running) {
-    Write-Host "Container exited; logs:" -ForegroundColor Red
+    Write-Host "Container not running; logs:" -ForegroundColor Red
     docker logs $SimName 2>&1
     throw "Fleet simulator failed to start"
 }
-
 Write-Host "OK. Tail logs: docker logs -f $SimName"
 docker logs --tail 20 $SimName

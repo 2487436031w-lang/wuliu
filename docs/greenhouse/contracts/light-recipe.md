@@ -1,6 +1,7 @@
 # 智能光棚 · 光配方与设备模型契约
 
-> 版本：`v0.1` · 2026-08-28
+> 版本：`v0.2` · 2026-08-30  
+> 作物策略修订见 [RESEARCH-SOLUTION.md](../RESEARCH-SOLUTION.md)
 
 ---
 
@@ -93,23 +94,57 @@
 
 ### 冻结作物配方（MVP）
 
-#### 铁皮石斛 · 营养/组培适光期 `dendrobium-officinale-veg-v1`
+#### A. 铁皮石斛 · 组培/工厂苗 `dendrobium-officinale-tissue-v1`（精细控光主叙事）
 
 | 参数 | 值 |
 |------|-----|
-| hardMin / target / hardMax | 50 / 60–70 / 90 |
+| hardMin / target / hardMax | 50 / **60–70** / 90 |
 | photoperiodHours | 12 |
-| dli 约（12h@65） | ≈ 2.8 mol·m⁻²·d⁻¹ |
+| dli 约（12h@65） | ≈ 2.8 |
+| 依据 | 人工光工厂：~68 最佳；>92 光抑制、多糖下降 |
 
-#### 台湾金线莲 · 生物量期 `anoectochilus-formosanus-biomass-v1`
+> 原 `dendrobium-officinale-veg-v1` 保留为别名，语义对齐本配方。
+
+#### B. 铁皮石斛 · 栽培苗 `dendrobium-officinale-cultivation-v1`
+
+| 参数 | 值 |
+|------|-----|
+| hardMin / target / hardMax | 70 / **90–120** / 140 |
+| photoperiodHours | 12 |
+| 依据 | 栽培苗干物率至 ~120 增益明显；~150 出现抑制 |
+
+#### C. 设施草莓 · 冬春补光 `fragaria-greenhouse-winter-v1`（重庆寡照 / 产量叙事）
+
+| 参数 | 值 |
+|------|-----|
+| hardMin / target / hardMax | 150 / **250–400** / 550 |
+| dliTargetMin / Max | **17 / 25** |
+| photoperiodHours | 补光窗口优先填自然光低谷（如动态 8–10 h） |
+| preferNaturalLight | true |
+| 依据 | 园艺 DLI 指南 17–25；红颜日光温室 LED 补光增产约 33–56% |
+
+#### D. 台湾金线莲 · 生物量期 `anoectochilus-formosanus-biomass-v1`
 
 | 参数 | 值 |
 |------|-----|
 | hardMin / target / hardMax | 15 / 25–35 / 55 |
 | photoperiodHours | 14 |
-| 说明 | ~30 µmol 利于生物量；≥60 易受抑 |
+| 说明 | ~30 利生物量；≥60 易受抑 |
 
-切换作物 = 区绑定更换 `recipeId`，**不改代码**。
+切换作物/阶段 = 区绑定更换 `recipeId`，**不改代码**。
+
+### 多传感门控（可选字段，规则层）
+
+```json
+"gates": {
+  "vpdHighKpa": 1.4,
+  "ppfdScaleWhenVpdHigh": 0.85,
+  "moistureMinPct": 25,
+  "forbidRaiseDimmingWhenDry": true,
+  "ecMinMsCm": 0.8,
+  "capDimmingPercentWhenEcLow": 50
+}
+```
 
 ---
 

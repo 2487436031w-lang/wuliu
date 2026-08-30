@@ -1,6 +1,19 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type ProxyOptions } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
+import type { IncomingMessage } from 'node:http'
+
+/** SPA 路由与同名 API 前缀冲突时：浏览器导航（Accept: text/html）留给 Vite，XHR/fetch 仍代理到后端 */
+function apiProxy(target = 'http://localhost:8080'): ProxyOptions {
+  return {
+    target,
+    changeOrigin: true,
+    bypass(req: IncomingMessage) {
+      const accept = req.headers.accept ?? ''
+      if (accept.includes('text/html')) return '/index.html'
+    },
+  }
+}
 
 export default defineConfig({
   plugins: [vue()],
@@ -17,13 +30,14 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
-      '/users': { target: 'http://localhost:8080', changeOrigin: true },
-      '/devices': { target: 'http://localhost:8080', changeOrigin: true },
-      '/light-readings': { target: 'http://localhost:8080', changeOrigin: true },
-      '/alarm-logs': { target: 'http://localhost:8080', changeOrigin: true },
-      '/threshold-config': { target: 'http://localhost:8080', changeOrigin: true },
-      '/control-logs': { target: 'http://localhost:8080', changeOrigin: true },
-      '/knowledge-chunks': { target: 'http://localhost:8080', changeOrigin: true },
+      '/users': apiProxy(),
+      '/devices': apiProxy(),
+      '/light-readings': apiProxy(),
+      '/alarm-logs': apiProxy(),
+      '/threshold-config': apiProxy(),
+      '/control-logs': apiProxy(),
+      '/knowledge-chunks': apiProxy(),
+      '/greenhouse': apiProxy(),
       '/ws': { target: 'ws://localhost:8080', ws: true },
     },
   },

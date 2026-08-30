@@ -7,7 +7,10 @@ cd smart-street-light-master
 powershell -ExecutionPolicy Bypass -File scripts\run-local.ps1
 ```
 
-包含：Docker(PG:5433 + EMQX:1883) → 建库 → **7 盏模拟灯 fleet-sim** → Docker Maven 编译 → 启动 `:8080`。
+包含：Docker(PG:5433 + EMQX:1883) → 建库 → Docker Maven 编译 → 启动 `:8080`。  
+光棚仿真在进程内；路灯模拟灯可选 `docker compose --profile lamp-fleet up -d`。
+
+清理本机无关容器/镜像：`scripts\docker-cleanup.ps1 -AlsoImages`
 
 ## 分步
 

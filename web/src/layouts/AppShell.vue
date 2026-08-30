@@ -13,11 +13,8 @@ const router = useRouter()
 
 const nav = [
   { to: '/dashboard', label: '总览', icon: '◉' },
-  { to: '/map', label: '地图', icon: '⌖' },
+  { to: '/greenhouse', label: '冠层光场', icon: '▣' },
   { to: '/devices', label: '设备', icon: '◎' },
-  { to: '/lights', label: '光照', icon: '☀' },
-  { to: '/alarms', label: '告警', icon: '⚠' },
-  { to: '/threshold', label: '阈值', icon: '⚙' },
   { to: '/logs', label: '控制日志', icon: '≡' },
 ]
 
@@ -38,8 +35,8 @@ async function onLogout() {
           <BrandIcon :size="22" />
         </div>
         <div>
-          <p class="mark">灯廊</p>
-          <p class="sub">智慧路灯控制台</p>
+          <p class="mark">智慧光棚</p>
+          <p class="sub">农业补光与遮阳控制台</p>
         </div>
       </div>
 
@@ -71,7 +68,7 @@ async function onLogout() {
       <header class="top">
         <div class="top-text">
           <h1>{{ route.meta.title }}</h1>
-          <p class="subtitle">{{ route.meta.title }} · 灯廊管理平台</p>
+          <p class="subtitle">{{ route.meta.title }} · 智慧光棚</p>
         </div>
         <div class="status-pill" :data-on="realtime.connected">
           <span class="dot" />

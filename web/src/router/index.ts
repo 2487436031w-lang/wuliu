@@ -12,42 +12,24 @@ const routes: RouteRecordRaw[] = [
     path: '/',
     component: () => import('../layouts/AppShell.vue'),
     children: [
-      { path: '', redirect: '/dashboard' },
+      { path: '', redirect: '/greenhouse' },
       {
         path: 'dashboard',
         name: 'dashboard',
         component: () => import('../views/DashboardView.vue'),
-        meta: { title: '总览' },
+        meta: { title: '场务总览' },
+      },
+      {
+        path: 'greenhouse',
+        name: 'greenhouse',
+        component: () => import('../views/GreenhouseView.vue'),
+        meta: { title: '冠层光场' },
       },
       {
         path: 'devices',
         name: 'devices',
         component: () => import('../views/DevicesView.vue'),
-        meta: { title: '设备管理' },
-      },
-      {
-        path: 'map',
-        name: 'map',
-        component: () => import('../views/MapView.vue'),
-        meta: { title: '路灯地图' },
-      },
-      {
-        path: 'lights',
-        name: 'lights',
-        component: () => import('../views/LightsView.vue'),
-        meta: { title: '光照监测' },
-      },
-      {
-        path: 'alarms',
-        name: 'alarms',
-        component: () => import('../views/AlarmsView.vue'),
-        meta: { title: '告警管理' },
-      },
-      {
-        path: 'threshold',
-        name: 'threshold',
-        component: () => import('../views/ThresholdView.vue'),
-        meta: { title: '阈值配置' },
+        meta: { title: '设备' },
       },
       {
         path: 'logs',
@@ -67,10 +49,10 @@ export const router = createRouter({
 router.beforeEach((to) => {
   const auth = useAuthStore()
   if (to.meta.public) {
-    if (auth.isAuthed && to.name === 'login') return '/dashboard'
+    if (auth.isAuthed && to.name === 'login') return '/greenhouse'
     return true
   }
   if (!auth.isAuthed) return { name: 'login', query: { redirect: to.fullPath } }
-  if (to.meta.admin && !auth.isAdmin) return '/dashboard'
+  if (to.meta.admin && !auth.isAdmin) return '/greenhouse'
   return true
 })

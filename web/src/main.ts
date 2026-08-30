@@ -11,7 +11,7 @@ import './styles/components.css'
 
 runBootstrap()
 if (import.meta.env.DEV) {
-  console.info(`[灯廊] API 模式: ${apiMode}`)
+  console.info(`[智慧光棚] API 模式: ${apiMode}`)
 }
 
 const app = createApp(App)
