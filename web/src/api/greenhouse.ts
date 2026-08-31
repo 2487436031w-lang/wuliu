@@ -49,17 +49,21 @@ export type GhRecipe = {
 }
 
 export type GhDevice = {
+  id?: number
   deviceSn: string
   deviceName: string
   zoneId: string
   deviceType: string
+  model?: string
   dimmingPercent?: number
   shadeOpenPercent?: number
+  powerOn?: boolean
   lastPpfd?: number
   onlineStatus?: string
   posX?: number
   posY?: number
   posZ?: number
+  lastSeenAt?: string
 }
 
 export type GhWorkOrder = {
